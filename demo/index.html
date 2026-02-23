@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Demo Site - LettsFeedback Widget</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1f2937; }
+
+    .hero {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white; padding: 100px 32px; text-align: center;
+    }
+    .hero h1 { font-size: 48px; font-weight: 800; margin-bottom: 16px; }
+    .hero p { font-size: 20px; opacity: 0.9; max-width: 600px; margin: 0 auto; }
+
+    .content { max-width: 800px; margin: 0 auto; padding: 60px 32px; }
+    .content h2 { font-size: 28px; font-weight: 700; margin-bottom: 12px; }
+    .content p { font-size: 16px; line-height: 1.7; color: #4b5563; margin-bottom: 24px; }
+
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px; margin: 32px 0; }
+    .card {
+      background: white; border: 1px solid #e5e7eb; border-radius: 16px;
+      padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .card h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .card p { font-size: 14px; color: #6b7280; }
+
+    .info-bar {
+      background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px;
+      padding: 16px 20px; font-size: 14px; color: #1e40af; margin: 32px 0;
+    }
+    .info-bar code { background: #dbeafe; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <h1>Demo Application</h1>
+    <p>This is a sample website with the LettsFeedback widget installed. Click the chat icon in the bottom-right corner to try it out!</p>
+  </div>
+
+  <div class="content">
+    <h2>Welcome to our platform</h2>
+    <p>
+      This demo page showcases the LettsFeedback widget in action. The widget appears as a
+      small floating button that lets visitors send feedback, report bugs, or request features
+      — all with an automatic screenshot of the current page.
+    </p>
+
+    <div class="info-bar">
+      💡 <strong>Try it out:</strong> Click the purple chat button in the bottom-right corner.
+      You can also change the position by editing the <code>position</code> attribute on the widget element.
+    </div>
+
+    <div class="card-grid">
+      <div class="card">
+        <h3>📸 Screenshots</h3>
+        <p>The widget automatically captures a screenshot of the page when the feedback dialog opens.</p>
+      </div>
+      <div class="card">
+        <h3>🏷️ Categories</h3>
+        <p>Users can classify their feedback as a bug report, feature request, or general comment.</p>
+      </div>
+      <div class="card">
+        <h3>⭐ Ratings</h3>
+        <p>Optional star rating to quickly gauge user sentiment about the page.</p>
+      </div>
+      <div class="card">
+        <h3>📋 Metadata</h3>
+        <p>Attach arbitrary JSON data to each submission — user IDs, session info, feature flags, etc.</p>
+      </div>
+    </div>
+
+    <h2>How it works</h2>
+    <p>
+      The widget is a standard Web Component. Add the script tag and the custom element
+      to any HTML page. It uses Shadow DOM so its styles never conflict with your site.
+    </p>
+    <p>
+      Feedback is sent to your backend via a simple REST API, authenticated with a per-tenant
+      site key. Admins can review all submissions in the dashboard at <code>/admin</code>.
+    </p>
+  </div>
+
+  <!-- IMPORTANT: Replace YOUR_SITE_KEY with the key from /admin/settings after setup -->
+  <script src="http://localhost:3001/widget.js"></script>
+  <feedback-widget
+    site-key="cmltcuhhr0001x9xftyjon5ak"
+    api-url="http://localhost:3001"
+    position="bottom-right"
+    page-title="Demo Page"
+    page-id="demo-001"
+    user-id="demo-user-42"
+    user-name="Jane Demo"
+    metadata='{"environment": "demo", "version": "1.0"}'
+    theme-color="#6366f1"
+  ></feedback-widget>
+</body>
+</html>

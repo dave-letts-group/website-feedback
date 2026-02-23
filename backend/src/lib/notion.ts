@@ -14,6 +14,7 @@ interface FeedbackData {
   category: string;
   rating: number | null;
   status: string;
+  screenshot: string | null;
   metadata: unknown;
   createdAt: Date;
 }
@@ -189,7 +190,8 @@ function buildNotionProperties(
   const mapping: [string[], string | number | null | undefined, string?][] = [
     [["message", "feedback", "description", "content", "details"], feedback.message],
     [["category", "type", "kind"], feedback.category],
-    [["status", "state"], feedback.status],
+    [["status"], "Not started"],
+    [["state"], "New"],
     [["submitted date", "date", "submitted", "created", "created at", "createdat"], feedback.createdAt.toISOString()],
     [["page title", "pagetitle", "page"], feedback.pageTitle],
     [["page url", "pageurl", "url", "link", "source url", "sourceurl"], feedback.pageUrl],
@@ -197,8 +199,8 @@ function buildNotionProperties(
     [["user name", "username", "user", "name", "submitted by", "submittedby", "author"], feedback.userName],
     [["user id", "userid"], feedback.userId],
     [["rating", "score", "stars"], feedback.rating],
-    [["metadata", "meta", "extra", "custom data", "customdata"], feedback.metadata ? JSON.stringify(feedback.metadata) : null],
     [["admin link", "adminlink", "admin url", "adminurl", "portal link", "portallink"], adminBaseUrl ? `${adminBaseUrl}/admin/feedback/${feedback.id}` : null],
+    [["screenshot"], adminBaseUrl ? `${adminBaseUrl}/admin/feedback/${feedback.id}` : null],
   ];
 
   for (const [candidates, value] of mapping) {
@@ -212,6 +214,37 @@ function buildNotionProperties(
   return properties;
 }
 
+function para(text: string): unknown {
+  return {
+    object: "block",
+    type: "paragraph",
+    paragraph: {
+      rich_text: [{ type: "text", text: { content: truncate(text, 2000) } }],
+    },
+  };
+}
+
+function buildNotionChildren(feedback: FeedbackData, adminBaseUrl: string): unknown[] {
+  const adminUrl = adminBaseUrl ? `${adminBaseUrl}/admin/feedback/${feedback.id}` : null;
+
+  const lines: string[] = [
+    `ID: ${feedback.id}`,
+    `Message: ${feedback.message}`,
+    `Category: ${feedback.category}`,
+    `Status: ${feedback.status}`,
+    `Rating: ${feedback.rating ?? "—"}`,
+    `User: ${feedback.userName ?? "—"} (${feedback.userId ?? "—"})`,
+    `Page: ${feedback.pageTitle ?? "—"}`,
+    `URL: ${feedback.pageUrl ?? "—"}`,
+    `Page ID: ${feedback.pageId ?? "—"}`,
+    `Submitted: ${feedback.createdAt.toISOString()}`,
+    `Metadata: ${feedback.metadata ? JSON.stringify(feedback.metadata) : "—"}`,
+    `Admin URL: ${adminUrl ?? "—"}`,
+  ];
+
+  return lines.map(para);
+}
+
 export async function pushFeedbackToNotion(
   notionApiKey: string,
   notionDbId: string,
@@ -221,11 +254,15 @@ export async function pushFeedbackToNotion(
 
   const schema = await fetchDbSchema(notionApiKey, notionDbId);
   const properties = buildNotionProperties(feedback, schema, adminBaseUrl);
+  const children = buildNotionChildren(feedback, adminBaseUrl);
 
-  const body = {
+  const body: Record<string, unknown> = {
     parent: { database_id: notionDbId },
     properties,
   };
+  if (children.length > 0) {
+    body.children = children;
+  }
 
   const response = await fetch(`${NOTION_API}/pages`, {
     method: "POST",

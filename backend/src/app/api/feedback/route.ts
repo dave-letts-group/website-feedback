@@ -130,6 +130,7 @@ export async function POST(request: NextRequest) {
       category: feedback.category,
       rating: feedback.rating,
       status: feedback.status,
+      screenshot: feedback.screenshot,
       metadata: feedback.metadata,
       createdAt: feedback.createdAt,
     };

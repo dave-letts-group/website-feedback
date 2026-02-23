@@ -47,7 +47,7 @@ export default async function AdminLayout({
 
   const cookieStore = await cookies();
   const cookieSiteId = cookieStore.get("current-site-id")?.value ?? null;
-  const validSiteId = sites.some((s) => s.id === cookieSiteId) ? cookieSiteId : (sites[0]?.id ?? null);
+  const validSiteId = sites.some((s: { id: string }) => s.id === cookieSiteId) ? cookieSiteId : (sites[0]?.id ?? null);
 
   return (
     <div className="flex h-screen bg-gray-50">

@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LettsFeedback - Collect User Feedback",
+  title: "WebFeedback - Collect User Feedback",
   description: "Beautiful feedback widget for any website",
 };
 

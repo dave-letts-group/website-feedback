@@ -3,7 +3,48 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { syncFeedbackToNotion } from "@/lib/notion";
 import { syncFeedbackToGithub } from "@/lib/github";
+import { sendFeedbackReceivedEmail } from "@/lib/email";
 import { checkOrigin, corsHeaders } from "@/lib/origin";
+
+interface FeedbackSnapshot {
+  id: string;
+  message: string;
+  category: string;
+  userName: string | null;
+  pageUrl: string | null;
+}
+
+async function notifyTeamOfFeedback(
+  siteId: string,
+  tenantId: string,
+  feedbackId: string,
+  feedback: FeedbackSnapshot,
+  siteName: string
+) {
+  try {
+    const admins = await prisma.admin.findMany({
+      where: { tenantId },
+      select: { email: true },
+    });
+
+    const emails = admins.map((a) => a.email);
+    if (emails.length === 0) return;
+
+    const feedbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/admin/feedback/${feedbackId}`;
+
+    sendFeedbackReceivedEmail({
+      to: emails,
+      siteName,
+      category: feedback.category,
+      message: feedback.message,
+      userName: feedback.userName,
+      pageUrl: feedback.pageUrl,
+      feedbackUrl,
+    });
+  } catch (error) {
+    console.error(`Email notification failed for feedback ${feedbackId}:`, error);
+  }
+}
 
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get("origin");
@@ -95,6 +136,8 @@ export async function POST(request: NextRequest) {
 
     syncFeedbackToNotion(site.id, feedback.id, feedbackData);
     syncFeedbackToGithub(site.id, feedback.id, feedbackData);
+
+    notifyTeamOfFeedback(site.id, site.tenantId, feedback.id, feedbackData, site.name);
 
     return NextResponse.json(
       { id: feedback.id, success: true },

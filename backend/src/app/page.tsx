@@ -20,7 +20,7 @@ export default function HomePage() {
               />
             </svg>
           </div>
-          <span className="text-xl font-bold text-gray-900">LettsFeedback</span>
+          <span className="text-xl font-bold text-gray-900">WebFeedback</span>
         </div>
         <div className="flex items-center gap-4">
           <Link

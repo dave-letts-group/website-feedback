@@ -217,7 +217,7 @@ export async function pushFeedbackToNotion(
   notionDbId: string,
   feedback: FeedbackData
 ): Promise<string | null> {
-  const adminBaseUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const adminBaseUrl = (process.env.NEXT_PUBLIC_APP_URL || "").trim().replace(/\/+$/, "");
 
   const schema = await fetchDbSchema(notionApiKey, notionDbId);
   const properties = buildNotionProperties(feedback, schema, adminBaseUrl);

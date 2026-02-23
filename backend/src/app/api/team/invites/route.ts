@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession, requireRole } from "@/lib/auth";
+import { sendInviteEmail } from "@/lib/email";
 
 export async function GET() {
   const session = await getSession();
@@ -107,6 +108,25 @@ export async function POST(request: NextRequest) {
     });
 
     const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${invite.token}`;
+
+    const [inviter, tenant] = await Promise.all([
+      prisma.admin.findUnique({
+        where: { id: session.adminId },
+        select: { name: true, email: true },
+      }),
+      prisma.tenant.findUnique({
+        where: { id: session.tenantId },
+        select: { name: true },
+      }),
+    ]);
+
+    sendInviteEmail({
+      to: invite.email,
+      inviteUrl,
+      inviterName: inviter?.name || inviter?.email || "A team member",
+      teamName: tenant?.name || "your team",
+      role: invite.role,
+    });
 
     return NextResponse.json({ invite, inviteUrl }, { status: 201 });
   } catch (error) {

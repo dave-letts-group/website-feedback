@@ -11,12 +11,7 @@ export async function GET() {
   const sites = await prisma.site.findMany({
     where: { tenantId: session.tenantId },
     orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      name: true,
-      domain: true,
-      siteKey: true,
-      createdAt: true,
+    include: {
       _count: { select: { feedback: true } },
     },
   });

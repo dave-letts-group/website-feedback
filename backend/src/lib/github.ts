@@ -92,7 +92,7 @@ function buildIssueBody(
 
   lines.push("");
   lines.push(
-    "*Created automatically by [LettsFeedback](https://github.com)*"
+    "*Created automatically by [WebFeedback](https://github.com)*"
   );
 
   return lines.join("\n");
@@ -103,7 +103,7 @@ export async function createGithubIssue(
   repo: string,
   feedback: FeedbackData
 ): Promise<string | null> {
-  const adminBaseUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const adminBaseUrl = (process.env.NEXT_PUBLIC_APP_URL || "").trim().replace(/\/+$/, "");
 
   const labels = CATEGORY_LABELS[feedback.category] || ["feedback"];
 

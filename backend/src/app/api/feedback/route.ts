@@ -135,8 +135,10 @@ export async function POST(request: NextRequest) {
       createdAt: feedback.createdAt,
     };
 
-    syncFeedbackToNotion(site.id, feedback.id, feedbackData);
-    syncFeedbackToGithub(site.id, feedback.id, feedbackData);
+    await Promise.all([
+      syncFeedbackToNotion(site.id, feedback.id, feedbackData),
+      syncFeedbackToGithub(site.id, feedback.id, feedbackData),
+    ]);
 
     notifyTeamOfFeedback(site.id, site.tenantId, feedback.id, feedbackData, site.name);
 

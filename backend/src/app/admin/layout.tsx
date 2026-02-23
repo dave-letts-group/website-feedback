@@ -47,7 +47,19 @@ export default async function AdminLayout({
 
   const cookieStore = await cookies();
   const cookieSiteId = cookieStore.get("current-site-id")?.value ?? null;
-  const validSiteId = sites.some((s: { id: string }) => s.id === cookieSiteId) ? cookieSiteId : (sites[0]?.id ?? null);
+  const siteIdIsValid = cookieSiteId
+    ? sites.some((s: { id: string }) => s.id === cookieSiteId)
+    : false;
+
+  // If the cookie holds a stale/invalid siteId, clear it so "All Sites" is shown
+  if (cookieSiteId && !siteIdIsValid) {
+    cookieStore.set("current-site-id", "", {
+      path: "/",
+      maxAge: 0,
+    });
+  }
+
+  const validSiteId = siteIdIsValid ? cookieSiteId : null;
 
   return (
     <div className="flex h-screen bg-gray-50">

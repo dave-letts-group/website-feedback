@@ -166,6 +166,12 @@ For Next.js apps, install the package and create a client component.
 
 See the full step-by-step guide: **[docs/INTEGRATE_NEXTJS.md](docs/INTEGRATE_NEXTJS.md)**
 
+## Angular Integration
+
+For Angular 13+ apps, add `CUSTOM_ELEMENTS_SCHEMA` and create a wrapper component.
+
+See the full step-by-step guide: **[docs/INTEGRATE_ANGULAR.md](docs/INTEGRATE_ANGULAR.md)**
+
 **Quick version:**
 
 ```bash

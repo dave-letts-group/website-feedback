@@ -30,7 +30,7 @@ export default function Sidebar({
   const [siteDropdownOpen, setSiteDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const currentSite = sites.find((s) => s.id === currentSiteId) ?? sites[0] ?? null;
+  const currentSite = currentSiteId ? (sites.find((s) => s.id === currentSiteId) ?? null) : null;
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -42,8 +42,12 @@ export default function Sidebar({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  function selectSite(siteId: string) {
-    document.cookie = `current-site-id=${siteId};path=/;max-age=${60 * 60 * 24 * 365}`;
+  function selectSite(siteId: string | null) {
+    if (siteId) {
+      document.cookie = `current-site-id=${siteId};path=/;max-age=${60 * 60 * 24 * 365}`;
+    } else {
+      document.cookie = `current-site-id=;path=/;max-age=0`;
+    }
     setSiteDropdownOpen(false);
     router.refresh();
   }
@@ -156,7 +160,7 @@ export default function Sidebar({
             onClick={() => setSiteDropdownOpen(!siteDropdownOpen)}
             className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-slate-800 rounded-lg text-sm text-slate-200 hover:bg-slate-700 transition-colors"
           >
-            <span className="truncate">{currentSite?.name ?? "No sites"}</span>
+            <span className="truncate">{currentSite?.name ?? (sites.length > 0 ? "All Sites" : "No sites")}</span>
             <svg
               className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${siteDropdownOpen ? "rotate-180" : ""}`}
               fill="none"
@@ -170,12 +174,22 @@ export default function Sidebar({
           {siteDropdownOpen && (
             <div className="absolute z-50 mt-1 w-full bg-slate-800 rounded-lg border border-slate-700 shadow-lg overflow-hidden">
               <div className="max-h-48 overflow-y-auto py-1">
+                <button
+                  onClick={() => selectSite(null)}
+                  className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                    !currentSiteId
+                      ? "bg-indigo-600/20 text-indigo-300"
+                      : "text-slate-300 hover:bg-slate-700 hover:text-white"
+                  }`}
+                >
+                  All Sites
+                </button>
                 {sites.map((site) => (
                   <button
                     key={site.id}
                     onClick={() => selectSite(site.id)}
                     className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                      site.id === currentSite?.id
+                      site.id === currentSite?.id && currentSiteId
                         ? "bg-indigo-600/20 text-indigo-300"
                         : "text-slate-300 hover:bg-slate-700 hover:text-white"
                     }`}

@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sites     Site[]
+  admins    Admin[]
+  invites   Invite[]
+}
+
+model Site {
+  id           String     @id @default(cuid())
+  tenantId     String
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  name         String
+  domain       String?
+  siteKey      String     @unique @default(cuid())
+  notionApiKey String?
+  notionDbId   String?
+  githubToken  String?
+  githubRepo   String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  feedback     Feedback[]
+
+  @@index([tenantId])
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  password     String
+  name         String?
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  role         String   @default("member")
+  isSuperAdmin Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  invites      Invite[]
+}
+
+model Invite {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  email       String
+  role        String    @default("member")
+  token       String    @unique @default(cuid())
+  expiresAt   DateTime
+  invitedById String
+  invitedBy   Admin     @relation(fields: [invitedById], references: [id])
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId])
+  @@index([token])
+}
+
+model Feedback {
+  id             String   @id @default(cuid())
+  siteId         String
+  site           Site     @relation(fields: [siteId], references: [id])
+  tenantId       String
+  pageTitle      String?
+  pageId         String?
+  pageUrl        String?
+  urlParams      Json?
+  userId         String?
+  userName       String?
+  message        String
+  category       String   @default("general")
+  rating         Int?
+  screenshot     String?  @db.Text
+  metadata       Json?
+  userAgent      String?
+  sourceDomain   String?
+  status         String   @default("new")
+  notionPageId   String?
+  githubIssueUrl String?
+  createdAt      DateTime @default(now())
+
+  @@index([siteId, status])
+  @@index([siteId, createdAt])
+  @@index([tenantId, createdAt])
+}

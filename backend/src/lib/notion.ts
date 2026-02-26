@@ -100,9 +100,10 @@ function resolveStatusOption(
   }
 
   const STATUS_MAP: Record<string, string[]> = {
-    new: ["not started", "to do", "todo", "backlog", "open", "pending", "new"],
-    reviewed: ["in progress", "in review", "reviewing", "under review", "active"],
-    archived: ["done", "complete", "completed", "closed", "archived", "resolved"],
+    new: ["not started", "to do", "todo", "backlog", "open", "new"],
+    pending: ["pending", "waiting", "on hold", "blocked"],
+    "in progress": ["in progress", "in review", "reviewing", "under review", "active", "doing"],
+    closed: ["done", "complete", "completed", "closed", "archived", "resolved"],
   };
 
   const candidates = STATUS_MAP[value.toLowerCase()] || [];
@@ -190,8 +191,7 @@ function buildNotionProperties(
   const mapping: [string[], string | number | null | undefined, string?][] = [
     [["message", "feedback", "description", "content", "details"], feedback.message],
     [["category", "type", "kind"], feedback.category],
-    [["status"], "Not started"],
-    [["state"], "New"],
+    [["status", "state"], feedback.status],
     [["submitted date", "date", "submitted", "created", "created at", "createdat"], feedback.createdAt.toISOString()],
     [["page title", "pagetitle", "page"], feedback.pageTitle],
     [["page url", "pageurl", "url", "link", "source url", "sourceurl"], feedback.pageUrl],

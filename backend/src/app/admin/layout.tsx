@@ -51,14 +51,6 @@ export default async function AdminLayout({
     ? sites.some((s: { id: string }) => s.id === cookieSiteId)
     : false;
 
-  // If the cookie holds a stale/invalid siteId, clear it so "All Sites" is shown
-  if (cookieSiteId && !siteIdIsValid) {
-    cookieStore.set("current-site-id", "", {
-      path: "/",
-      maxAge: 0,
-    });
-  }
-
   const validSiteId = siteIdIsValid ? cookieSiteId : null;
 
   return (

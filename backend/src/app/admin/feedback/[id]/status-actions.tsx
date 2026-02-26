@@ -28,9 +28,10 @@ export default function StatusActions({
   }
 
   const actions = [
-    { status: "new", label: "Mark New", style: "border-blue-200 text-blue-700 hover:bg-blue-50" },
-    { status: "reviewed", label: "Mark Reviewed", style: "border-emerald-200 text-emerald-700 hover:bg-emerald-50" },
-    { status: "archived", label: "Archive", style: "border-gray-200 text-gray-600 hover:bg-gray-50" },
+    { status: "New", label: "Mark New", style: "border-blue-200 text-blue-700 hover:bg-blue-50" },
+    { status: "Pending", label: "Mark Pending", style: "border-amber-200 text-amber-700 hover:bg-amber-50" },
+    { status: "In Progress", label: "In Progress", style: "border-indigo-200 text-indigo-700 hover:bg-indigo-50" },
+    { status: "Closed", label: "Close", style: "border-gray-200 text-gray-600 hover:bg-gray-50" },
   ].filter((a) => a.status !== currentStatus);
 
   return (

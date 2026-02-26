@@ -31,6 +31,7 @@ model Site {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   feedback     Feedback[]
+  apiKeys      ApiKey[]
 
   @@index([tenantId])
 }
@@ -83,7 +84,7 @@ model Feedback {
   metadata       Json?
   userAgent      String?
   sourceDomain   String?
-  status         String   @default("new")
+  status         String   @default("New")
   notionPageId   String?
   githubIssueUrl String?
   createdAt      DateTime @default(now())
@@ -91,4 +92,21 @@ model Feedback {
   @@index([siteId, status])
   @@index([siteId, createdAt])
   @@index([tenantId, createdAt])
+}
+
+model ApiKey {
+  id          String   @id @default(cuid())
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  tenantId    String
+  name        String
+  key         String   @unique
+  permissions String[]
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  lastUsedAt  DateTime?
+
+  @@index([key])
+  @@index([siteId])
+  @@index([tenantId])
 }

@@ -1,12 +1,8 @@
-import Mailjet from "node-mailjet";
+import { Resend } from "resend";
 
-const mailjet = Mailjet.apiConnect(
-  process.env.MAILJET_API_KEY!,
-  process.env.MAILJET_SECRET_KEY!
-);
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM_EMAIL = "notifcations@pawafx.pawapay.co.uk";
-const FROM_NAME = "WebFeedback";
+const FROM_ADDRESS = "WebFeedback <notifcations@pawafx.pawapay.co.uk>";
 
 interface InviteEmailParams {
   to: string;
@@ -116,19 +112,19 @@ function feedbackReceivedHtml({
 
 export async function sendInviteEmail(params: InviteEmailParams) {
   try {
-    const result = await mailjet.post("send", { version: "v3.1" }).request({
-      Messages: [
-        {
-          From: { Email: FROM_EMAIL, Name: FROM_NAME },
-          To: [{ Email: params.to }],
-          Subject: `You've been invited to join ${params.teamName}`,
-          HTMLPart: inviteHtml(params),
-        },
-      ],
+    const { data, error } = await resend.emails.send({
+      from: FROM_ADDRESS,
+      to: params.to,
+      subject: `You've been invited to join ${params.teamName}`,
+      html: inviteHtml(params),
     });
 
-    const message = (result.body as { Messages: Array<{ Status: string; To: Array<{ MessageID: number }> }> }).Messages?.[0];
-    return message?.To?.[0]?.MessageID?.toString() ?? null;
+    if (error) {
+      console.error("Failed to send invite email:", error);
+      return null;
+    }
+
+    return data?.id ?? null;
   } catch (error) {
     console.error("Invite email error:", error);
     return null;
@@ -139,19 +135,19 @@ export async function sendFeedbackReceivedEmail(params: FeedbackReceivedEmailPar
   if (params.to.length === 0) return null;
 
   try {
-    const result = await mailjet.post("send", { version: "v3.1" }).request({
-      Messages: [
-        {
-          From: { Email: FROM_EMAIL, Name: FROM_NAME },
-          To: params.to.map((email) => ({ Email: email })),
-          Subject: `New ${params.category} feedback on ${params.siteName}`,
-          HTMLPart: feedbackReceivedHtml(params),
-        },
-      ],
+    const { data, error } = await resend.emails.send({
+      from: FROM_ADDRESS,
+      to: params.to,
+      subject: `New ${params.category} feedback on ${params.siteName}`,
+      html: feedbackReceivedHtml(params),
     });
 
-    const message = (result.body as { Messages: Array<{ Status: string; To: Array<{ MessageID: number }> }> }).Messages?.[0];
-    return message?.To?.[0]?.MessageID?.toString() ?? null;
+    if (error) {
+      console.error("Failed to send feedback notification email:", error);
+      return null;
+    }
+
+    return data?.id ?? null;
   } catch (error) {
     console.error("Feedback notification email error:", error);
     return null;

@@ -18,12 +18,13 @@ interface FeedbackItem {
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    new: "bg-blue-100 text-blue-700",
-    reviewed: "bg-emerald-100 text-emerald-700",
-    archived: "bg-gray-100 text-gray-600",
+    New: "bg-blue-100 text-blue-700",
+    Pending: "bg-amber-100 text-amber-700",
+    "In Progress": "bg-indigo-100 text-indigo-700",
+    Closed: "bg-gray-100 text-gray-600",
   };
   return (
-    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || styles.new}`}>
+    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || styles.New}`}>
       {status}
     </span>
   );
@@ -113,9 +114,10 @@ export default function FeedbackListPage() {
             className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none"
           >
             <option value="all">All Status</option>
-            <option value="new">New</option>
-            <option value="reviewed">Reviewed</option>
-            <option value="archived">Archived</option>
+            <option value="New">New</option>
+            <option value="Pending">Pending</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Closed">Closed</option>
           </select>
           <select
             value={category}

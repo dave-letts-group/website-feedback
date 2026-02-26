@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { verifyApiKey, extractApiKey } from "@/lib/apiKey";
 import { syncFeedbackToNotion } from "@/lib/notion";
 import { syncFeedbackToGithub } from "@/lib/github";
 import { sendFeedbackReceivedEmail } from "@/lib/email";
@@ -52,7 +53,7 @@ export async function OPTIONS(request: NextRequest) {
     headers: {
       "Access-Control-Allow-Origin": origin || "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, X-Site-Key",
+      "Access-Control-Allow-Headers": "Content-Type, X-Site-Key, Authorization, X-API-Key",
       ...(origin && { Vary: "Origin" }),
     },
   });
@@ -156,9 +157,34 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  // Try session auth first
   const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // If no session, try API key auth
+  let tenantId: string;
+  let siteFilter: string | undefined;
+
+  if (session) {
+    tenantId = session.tenantId;
+  } else {
+    const apiKey = extractApiKey(request.headers);
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "Unauthorized - session or Bearer token required" },
+        { status: 401 }
+      );
+    }
+
+    const verified = await verifyApiKey(apiKey, ["feedback:read"]);
+    if (!verified) {
+      return NextResponse.json(
+        { error: "Invalid or expired API key" },
+        { status: 401 }
+      );
+    }
+
+    tenantId = verified.tenantId;
+    siteFilter = verified.siteId; // API key is scoped to specific site
   }
 
   const { searchParams } = new URL(request.url);
@@ -169,8 +195,16 @@ export async function GET(request: NextRequest) {
   const page = parseInt(searchParams.get("page") || "1");
   const limit = parseInt(searchParams.get("limit") || "20");
 
-  const where: Record<string, unknown> = { tenantId: session.tenantId };
-  if (siteId) where.siteId = siteId;
+  const where: Record<string, unknown> = { tenantId };
+
+  // API key auth: restrict to the site the key belongs to
+  if (siteFilter) {
+    where.siteId = siteFilter;
+  } else if (siteId) {
+    // Session auth: allow filtering by siteId
+    where.siteId = siteId;
+  }
+
   if (status && status !== "all") where.status = status;
   if (category && category !== "all") where.category = category;
   if (search) {

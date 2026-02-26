@@ -1,6 +1,10 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+function getResend(): Resend {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
+}
 
 const FROM_ADDRESS = "WebFeedback <notifcations@pawafx.pawapay.co.uk>";
 
@@ -112,7 +116,7 @@ function feedbackReceivedHtml({
 
 export async function sendInviteEmail(params: InviteEmailParams) {
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: FROM_ADDRESS,
       to: params.to,
       subject: `You've been invited to join ${params.teamName}`,
@@ -135,7 +139,7 @@ export async function sendFeedbackReceivedEmail(params: FeedbackReceivedEmailPar
   if (params.to.length === 0) return null;
 
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: FROM_ADDRESS,
       to: params.to,
       subject: `New ${params.category} feedback on ${params.siteName}`,

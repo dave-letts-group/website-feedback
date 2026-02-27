@@ -701,6 +701,43 @@ export default function SiteDetailPage() {
             </tbody>
           </table>
 
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+            Optional &#x2014; Screenshot Capture
+          </h3>
+          <p className="text-sm text-gray-500 mb-3">
+            The modal opens instantly. Screenshot capture runs asynchronously in the background and never blocks interactivity.
+            On timeout or error, the modal shows a non-blocking hint and submission still works normally.
+          </p>
+          <table className="w-full text-sm mb-6">
+            <thead>
+              <tr className="text-left border-b border-gray-100">
+                <th className="pb-2 font-medium text-gray-500">Attribute</th>
+                <th className="pb-2 font-medium text-gray-500">Default</th>
+                <th className="pb-2 font-medium text-gray-500">Description</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {[
+                ["capture-enabled", "true", "Set to \"false\" to disable screenshots entirely. screenshot is null on submit."],
+                ["capture-target", "viewport", "DOM region to capture: viewport (document root), main (<main> element), or body (document.body). Falls back to body if target not found."],
+                ["capture-scale", "0.35", "html2canvas render scale. Lower = faster and smaller payload, but less resolution."],
+                ["capture-timeout-ms", "4500", "Max milliseconds before capture is abandoned. Modal stays fully interactive throughout."],
+                ["capture-format", "jpeg", "Output format: jpeg or png. PNG is lossless but significantly larger."],
+                ["capture-quality", "0.6", "JPEG compression quality (0\u20131). Ignored when capture-format=\"png\"."],
+              ].map(([attr, def, desc]) => (
+                <tr key={attr}>
+                  <td className="py-2.5 pr-3 align-top">
+                    <code className="bg-gray-50 px-1.5 py-0.5 rounded text-xs font-mono text-indigo-600 whitespace-nowrap">{attr}</code>
+                  </td>
+                  <td className="py-2.5 pr-3 align-top">
+                    <code className="text-xs font-mono text-gray-500">{def}</code>
+                  </td>
+                  <td className="py-2.5 text-gray-600">{desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Captured Automatically</h3>
           <p className="text-sm text-gray-500 mb-3">
             These are collected without any attributes — no configuration needed.
@@ -717,7 +754,7 @@ export default function SiteDetailPage() {
                 ["Page URL", "window.location.href"],
                 ["URL Parameters", "Query string parsed from the current URL"],
                 ["User Agent", "navigator.userAgent (browser & OS info)"],
-                ["Screenshot", "Captured via html2canvas when the modal opens"],
+                ["Screenshot", "Captured asynchronously after modal opens. Null if capture is disabled, timed out, or failed."],
               ].map(([data, source]) => (
                 <tr key={data}>
                   <td className="py-2.5 pr-4 text-gray-700 font-medium">{data}</td>
@@ -745,6 +782,26 @@ export default function SiteDetailPage() {
   user-name="Jane Smith"
   metadata='{"plan":"pro","version":"2.4.1"}'
   theme-color="#6366f1"
+></feedback-widget>`}</pre>
+
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-6 mb-3">Heavy SPA / Dashboard</h3>
+          <p className="text-sm text-gray-500 mb-3">
+            For apps with large or complex DOM trees, limit the capture region to{" "}
+            <code className="bg-gray-100 px-1 py-0.5 rounded text-xs">&lt;main&gt;</code> to avoid
+            stalling on full-page capture:
+          </p>
+          <pre className="bg-gray-900 text-gray-100 rounded-xl p-5 text-sm overflow-x-auto font-mono leading-relaxed select-all">{`<feedback-widget
+  site-key="${site.siteKey}"
+  api-url="${backendUrl}"
+  capture-target="main"
+  capture-timeout-ms="6000"
+></feedback-widget>`}</pre>
+
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-6 mb-3">Disable Screenshots</h3>
+          <pre className="bg-gray-900 text-gray-100 rounded-xl p-5 text-sm overflow-x-auto font-mono leading-relaxed select-all">{`<feedback-widget
+  site-key="${site.siteKey}"
+  api-url="${backendUrl}"
+  capture-enabled="false"
 ></feedback-widget>`}</pre>
         </div>
 
@@ -821,8 +878,9 @@ widget.setAttribute('metadata', JSON.stringify({
           </h3>
           <pre className="bg-gray-900 text-gray-100 rounded-xl p-5 text-sm overflow-x-auto font-mono leading-relaxed select-all">{`const widget = document.querySelector('feedback-widget');
 
-widget.open();   // Open the feedback modal
-widget.close();  // Close the feedback modal`}</pre>
+widget.open();              // Open the feedback modal
+widget.close();             // Close the feedback modal
+await widget.captureNow();  // Manually trigger capture, returns data URL or null`}</pre>
         </div>
 
         {/* Danger Zone */}

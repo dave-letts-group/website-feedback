@@ -40,6 +40,9 @@ export type FeedbackWidgetPosition =
   | "middle-right"
   | "middle-left";
 
+export type CaptureTarget = "viewport" | "main" | "body";
+export type CaptureFormat = "jpeg" | "png";
+
 export interface FeedbackWidgetAttributes {
   "site-key"?: string;
   "api-url"?: string;
@@ -51,6 +54,12 @@ export interface FeedbackWidgetAttributes {
   metadata?: string;
   "theme-color"?: string;
   "hide-trigger"?: string | boolean;
+  "capture-enabled"?: string | boolean;
+  "capture-target"?: CaptureTarget;
+  "capture-scale"?: string | number;
+  "capture-timeout-ms"?: string | number;
+  "capture-format"?: CaptureFormat;
+  "capture-quality"?: string | number;
 }
 
 // ---------------------------------------------------------------------------
@@ -58,19 +67,25 @@ export interface FeedbackWidgetAttributes {
 // ---------------------------------------------------------------------------
 
 const POSITIONS: Record<FeedbackWidgetPosition, Record<string, string>> = {
-  "bottom-right": { bottom: "24px", right: "24px" },
-  "bottom-left": { bottom: "24px", left: "24px" },
+  "bottom-right": { bottom: "calc(24px + env(safe-area-inset-bottom, 0px))", right: "24px" },
+  "bottom-left": { bottom: "calc(24px + env(safe-area-inset-bottom, 0px))", left: "24px" },
   "bottom-center": {
-    bottom: "24px",
+    bottom: "calc(24px + env(safe-area-inset-bottom, 0px))",
     left: "50%",
     transform: "translateX(-50%)",
   },
-  "top-right": { top: "24px", right: "24px" },
-  "top-left": { top: "24px", left: "24px" },
-  "top-center": { top: "24px", left: "50%", transform: "translateX(-50%)" },
+  "top-right": { top: "calc(24px + env(safe-area-inset-top, 0px))", right: "24px" },
+  "top-left": { top: "calc(24px + env(safe-area-inset-top, 0px))", left: "24px" },
+  "top-center": { top: "calc(24px + env(safe-area-inset-top, 0px))", left: "50%", transform: "translateX(-50%)" },
   "middle-right": { top: "50%", right: "24px", transform: "translateY(-50%)" },
   "middle-left": { top: "50%", left: "24px", transform: "translateY(-50%)" },
 };
+
+// ---------------------------------------------------------------------------
+// Capture state enum
+// ---------------------------------------------------------------------------
+
+type CaptureState = "idle" | "capturing" | "done" | "failed";
 
 // ---------------------------------------------------------------------------
 // Web Component
@@ -80,6 +95,8 @@ export class FeedbackWidget extends HTMLElement {
   private _shadow: ShadowRoot;
   private _isOpen = false;
   private _screenshot: string | null = null;
+  private _captureState: CaptureState = "idle";
+  private _captureInFlight = false;
   private _category = "general";
   private _rating = 0;
   private _submitting = false;
@@ -97,6 +114,12 @@ export class FeedbackWidget extends HTMLElement {
       "metadata",
       "theme-color",
       "hide-trigger",
+      "capture-enabled",
+      "capture-target",
+      "capture-scale",
+      "capture-timeout-ms",
+      "capture-format",
+      "capture-quality",
     ];
   }
 
@@ -123,6 +146,42 @@ export class FeedbackWidget extends HTMLElement {
     this._closeModal();
   }
 
+  async captureNow(): Promise<string | null> {
+    await this._runCapture();
+    return this._screenshot;
+  }
+
+  // -- Capture config getters -----------------------------------------------
+
+  private get _captureEnabled(): boolean {
+    const v = this.getAttribute("capture-enabled");
+    if (v === null) return true;
+    return v !== "false" && v !== "0";
+  }
+
+  private get _captureTarget(): CaptureTarget {
+    return (this.getAttribute("capture-target") as CaptureTarget) || "viewport";
+  }
+
+  private get _captureScale(): number {
+    const v = parseFloat(this.getAttribute("capture-scale") || "");
+    return isFinite(v) && v > 0 ? v : 0.35;
+  }
+
+  private get _captureTimeoutMs(): number {
+    const v = parseInt(this.getAttribute("capture-timeout-ms") || "", 10);
+    return isFinite(v) && v > 0 ? v : 4500;
+  }
+
+  private get _captureFormat(): CaptureFormat {
+    return (this.getAttribute("capture-format") as CaptureFormat) || "jpeg";
+  }
+
+  private get _captureQuality(): number {
+    const v = parseFloat(this.getAttribute("capture-quality") || "");
+    return isFinite(v) && v >= 0 && v <= 1 ? v : 0.6;
+  }
+
   // -- Internals ------------------------------------------------------------
 
   private get _themeColor(): string {
@@ -144,35 +203,96 @@ export class FeedbackWidget extends HTMLElement {
     return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
   }
 
-  private async _captureScreen(): Promise<void> {
+  private _resolveTarget(): HTMLElement {
+    const t = this._captureTarget;
+    if (t === "main") {
+      const main = document.querySelector("main") as HTMLElement | null;
+      if (main) return main;
+    }
+    if (t === "viewport") {
+      return document.documentElement;
+    }
+    return document.body;
+  }
+
+  private async _runCapture(): Promise<void> {
+    if (this._captureInFlight) return;
+    this._captureInFlight = true;
+    this._captureState = "capturing";
+    this._updateScreenshotUI();
+
+    const timeoutMs = this._captureTimeoutMs;
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("WebFeedback: screenshot capture timed out")), timeoutMs),
+    );
+
     try {
-      const h2c = await loadHtml2Canvas();
-      const canvas = await h2c(document.body, {
-        scale: 0.5,
-        useCORS: true,
-        logging: false,
-        ignoreElements: (el: Element) => el.tagName === "FEEDBACK-WIDGET",
-      });
-      this._screenshot = canvas.toDataURL("image/jpeg", 0.6);
+      const capturePromise = (async () => {
+        const h2c = await loadHtml2Canvas();
+        const target = this._resolveTarget();
+        const canvas = await h2c(target, {
+          scale: this._captureScale,
+          useCORS: true,
+          logging: false,
+          ignoreElements: (el: Element) =>
+            el === this ||
+            el.tagName === "FEEDBACK-WIDGET" ||
+            (el instanceof HTMLElement && el.classList.contains("fw-overlay-root")),
+        });
+        return canvas.toDataURL(
+          `image/${this._captureFormat}`,
+          this._captureFormat === "jpeg" ? this._captureQuality : undefined,
+        );
+      })();
+
+      this._screenshot = await Promise.race([capturePromise, timeoutPromise]);
+      this._captureState = "done";
     } catch (err) {
       console.warn("WebFeedback: screenshot capture failed", err);
       this._screenshot = null;
+      this._captureState = "failed";
+    } finally {
+      this._captureInFlight = false;
+    }
+
+    this._updateScreenshotUI();
+  }
+
+  private _updateScreenshotUI(): void {
+    const wrap = this._shadow.querySelector(".screenshot-wrap");
+    if (!wrap) return;
+
+    if (this._captureState === "capturing") {
+      wrap.innerHTML = `<div class="screenshot-loading"><div class="spinner"></div><br>Capturing page...</div>`;
+    } else if (this._captureState === "done" && this._screenshot) {
+      wrap.innerHTML = `<img src="${this._screenshot}" alt="Screenshot"/>`;
+    } else if (this._captureState === "failed") {
+      wrap.innerHTML = `<div class="screenshot-unavailable">\u{1F4F7} Screenshot unavailable</div>`;
     }
   }
 
-  private async _openModal(): Promise<void> {
+  private _openModal(): void {
     this._isOpen = true;
     this._submitted = false;
     this._category = "general";
     this._rating = 0;
+    this._screenshot = null;
+    this._captureState = this._captureEnabled ? "capturing" : "failed";
+    this._captureInFlight = false;
     this.render();
-    await this._captureScreen();
-    this.render();
+
+    if (this._captureEnabled) {
+      requestAnimationFrame(() => {
+        this._runCapture();
+      });
+    }
   }
 
   private _closeModal(): void {
     this._isOpen = false;
     this._screenshot = null;
+    this._captureState = "idle";
+    this._captureInFlight = false;
     this._submitted = false;
     this.render();
   }
@@ -281,7 +401,7 @@ export class FeedbackWidget extends HTMLElement {
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         .trigger {
-          position: fixed; ${posCSS}; z-index: 2147483646;
+          position: fixed; ${posCSS}; z-index: 2147483640;
           width: 56px; height: 56px; border-radius: 50%;
           background: ${c}; border: none; cursor: pointer;
           display: flex; align-items: center; justify-content: center;
@@ -342,6 +462,9 @@ export class FeedbackWidget extends HTMLElement {
           width: 24px; height: 24px; border: 2px solid #e5e7eb; border-top-color: ${c};
           border-radius: 50%; animation: fw-spin 0.7s linear infinite;
           display: inline-block; margin-bottom: 8px;
+        }
+        .screenshot-unavailable {
+          padding: 18px; text-align: center; color: #9ca3af; font-size: 13px;
         }
         @keyframes fw-spin { to { transform: rotate(360deg); } }
 
@@ -438,11 +561,7 @@ export class FeedbackWidget extends HTMLElement {
               </div>
               <div class="modal-body">
                 <div class="screenshot-wrap">
-                  ${
-                    this._screenshot
-                      ? `<img src="${this._screenshot}" alt="Screenshot"/>`
-                      : `<div class="screenshot-loading"><div class="spinner"></div><br>Capturing page...</div>`
-                  }
+                  ${this._screenshotSlotHTML()}
                 </div>
 
                 <div class="categories">
@@ -479,6 +598,16 @@ export class FeedbackWidget extends HTMLElement {
     `;
 
     this._bindEvents();
+  }
+
+  private _screenshotSlotHTML(): string {
+    if (!this._captureEnabled || this._captureState === "failed") {
+      return `<div class="screenshot-unavailable">\u{1F4F7} Screenshot unavailable</div>`;
+    }
+    if (this._captureState === "done" && this._screenshot) {
+      return `<img src="${this._screenshot}" alt="Screenshot"/>`;
+    }
+    return `<div class="screenshot-loading"><div class="spinner"></div><br>Capturing page...</div>`;
   }
 
   private _bindEvents(): void {

@@ -95,10 +95,10 @@ export async function syncFeedbackToWebhook(
   try {
     const site = await prisma.site.findUnique({
       where: { id: siteId },
-      select: { webhookUrl: true, webhookToken: true },
+      select: { webhookUrl: true, webhookToken: true, webhookEnabled: true },
     });
 
-    if (!site?.webhookUrl || !site?.webhookToken) return;
+    if (!site?.webhookUrl || !site?.webhookToken || !site.webhookEnabled) return;
 
     const result = await sendWebhook(site.webhookUrl, site.webhookToken, feedback);
     if (!result.ok) {

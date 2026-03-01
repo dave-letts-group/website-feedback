@@ -1,12 +1,42 @@
-import { Resend } from "resend";
+import Mailjet from "node-mailjet";
 
-let _resend: Resend | null = null;
-function getResend(): Resend {
-  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
-  return _resend;
+let _mailjet: ReturnType<typeof Mailjet.apiConnect> | null = null;
+let _warnedMissingMailjetKeys = false;
+
+function getMailjetKeys(): { apiKey: string; secretKey: string } {
+  const apiKey = (
+    process.env.MAILJET_API_KEY ||
+    process.env.MJ_APIKEY_PUBLIC ||
+    ""
+  ).trim();
+  const secretKey = (
+    process.env.MAILJET_SECRET_KEY ||
+    process.env.MJ_APIKEY_PRIVATE ||
+    ""
+  ).trim();
+  return { apiKey, secretKey };
 }
 
-const FROM_ADDRESS = "WebFeedback <notifcations@pawafx.pawapay.co.uk>";
+function getMailjet() {
+  const { apiKey, secretKey } = getMailjetKeys();
+  if (!apiKey || !secretKey) {
+    if (!_warnedMissingMailjetKeys) {
+      console.warn(
+        "Mailjet credentials are missing. Set MAILJET_API_KEY and MAILJET_SECRET_KEY (or MJ_APIKEY_PUBLIC / MJ_APIKEY_PRIVATE) to enable email notifications.",
+      );
+      _warnedMissingMailjetKeys = true;
+    }
+    return null;
+  }
+
+  if (!_mailjet) {
+    _mailjet = Mailjet.apiConnect(apiKey, secretKey);
+  }
+  return _mailjet;
+}
+
+const FROM_EMAIL = "notifcations@pawafx.pawapay.co.uk";
+const FROM_NAME = "WebFeedback";
 
 interface InviteEmailParams {
   to: string;
@@ -116,19 +146,22 @@ function feedbackReceivedHtml({
 
 export async function sendInviteEmail(params: InviteEmailParams) {
   try {
-    const { data, error } = await getResend().emails.send({
-      from: FROM_ADDRESS,
-      to: params.to,
-      subject: `You've been invited to join ${params.teamName}`,
-      html: inviteHtml(params),
+    const mailjet = getMailjet();
+    if (!mailjet) return null;
+
+    const result = await mailjet.post("send", { version: "v3.1" }).request({
+      Messages: [
+        {
+          From: { Email: FROM_EMAIL, Name: FROM_NAME },
+          To: [{ Email: params.to }],
+          Subject: `You've been invited to join ${params.teamName}`,
+          HTMLPart: inviteHtml(params),
+        },
+      ],
     });
 
-    if (error) {
-      console.error("Failed to send invite email:", error);
-      return null;
-    }
-
-    return data?.id ?? null;
+    const message = (result.body as { Messages?: Array<{ To?: Array<{ MessageID?: number }> }> }).Messages?.[0];
+    return message?.To?.[0]?.MessageID?.toString() ?? null;
   } catch (error) {
     console.error("Invite email error:", error);
     return null;
@@ -139,19 +172,22 @@ export async function sendFeedbackReceivedEmail(params: FeedbackReceivedEmailPar
   if (params.to.length === 0) return null;
 
   try {
-    const { data, error } = await getResend().emails.send({
-      from: FROM_ADDRESS,
-      to: params.to,
-      subject: `New ${params.category} feedback on ${params.siteName}`,
-      html: feedbackReceivedHtml(params),
+    const mailjet = getMailjet();
+    if (!mailjet) return null;
+
+    const result = await mailjet.post("send", { version: "v3.1" }).request({
+      Messages: [
+        {
+          From: { Email: FROM_EMAIL, Name: FROM_NAME },
+          To: params.to.map((email) => ({ Email: email })),
+          Subject: `New ${params.category} feedback on ${params.siteName}`,
+          HTMLPart: feedbackReceivedHtml(params),
+        },
+      ],
     });
 
-    if (error) {
-      console.error("Failed to send feedback notification email:", error);
-      return null;
-    }
-
-    return data?.id ?? null;
+    const message = (result.body as { Messages?: Array<{ To?: Array<{ MessageID?: number }> }> }).Messages?.[0];
+    return message?.To?.[0]?.MessageID?.toString() ?? null;
   } catch (error) {
     console.error("Feedback notification email error:", error);
     return null;

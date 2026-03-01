@@ -293,10 +293,10 @@ export async function syncFeedbackToNotion(
   try {
     const site = await prisma.site.findUnique({
       where: { id: siteId },
-      select: { notionApiKey: true, notionDbId: true },
+      select: { notionApiKey: true, notionDbId: true, notionEnabled: true },
     });
 
-    if (!site?.notionApiKey || !site?.notionDbId) return;
+    if (!site?.notionApiKey || !site?.notionDbId || !site.notionEnabled) return;
 
     const notionPageId = await pushFeedbackToNotion(
       site.notionApiKey,

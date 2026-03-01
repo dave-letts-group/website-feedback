@@ -59,10 +59,13 @@ export async function PATCH(
       domain,
       notionApiKey,
       notionDbId,
+      notionEnabled,
       githubToken,
       githubRepo,
+      githubEnabled,
       webhookUrl,
       webhookToken,
+      webhookEnabled,
     } =
       body;
 
@@ -120,7 +123,7 @@ export async function PATCH(
       }
     }
 
-    const data: Record<string, string | null> = {};
+    const data: Record<string, string | boolean | null> = {};
 
     if (name !== undefined) data.name = name.trim();
     if (domain !== undefined) data.domain = domain?.trim() || null;
@@ -143,6 +146,9 @@ export async function PATCH(
 
     if (webhookUrl !== undefined) data.webhookUrl = nextWebhookUrl;
     if (webhookToken !== undefined) data.webhookToken = nextWebhookToken;
+    if (notionEnabled !== undefined) data.notionEnabled = !!notionEnabled;
+    if (githubEnabled !== undefined) data.githubEnabled = !!githubEnabled;
+    if (webhookEnabled !== undefined) data.webhookEnabled = !!webhookEnabled;
 
     const updated = await prisma.site.update({ where: { id }, data });
 

@@ -146,10 +146,10 @@ export async function syncFeedbackToGithub(
   try {
     const site = await prisma.site.findUnique({
       where: { id: siteId },
-      select: { githubToken: true, githubRepo: true },
+      select: { githubToken: true, githubRepo: true, githubEnabled: true },
     });
 
-    if (!site?.githubToken || !site?.githubRepo) return;
+    if (!site?.githubToken || !site?.githubRepo || !site.githubEnabled) return;
 
     const issueUrl = await createGithubIssue(
       site.githubToken,

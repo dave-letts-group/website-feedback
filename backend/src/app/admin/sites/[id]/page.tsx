@@ -10,10 +10,13 @@ interface SiteData {
   siteKey: string;
   notionApiKey: string | null;
   notionDbId: string | null;
+  notionEnabled: boolean;
   githubToken: string | null;
   githubRepo: string | null;
+  githubEnabled: boolean;
   webhookUrl: string | null;
   webhookToken: string | null;
+  webhookEnabled: boolean;
   createdAt: string;
 }
 
@@ -195,6 +198,29 @@ export default function SiteDetailPage() {
     }
   }
 
+  async function handleNotionToggle(enabled: boolean) {
+    clearMessages();
+    setNotionSaving(true);
+    try {
+      const res = await fetch(`/api/sites/${siteId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notionEnabled: enabled }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to update Notion status");
+        return;
+      }
+      setSite(data.site);
+      setSuccess(enabled ? "Notion integration enabled" : "Notion integration disabled");
+    } catch {
+      setError("Network error");
+    } finally {
+      setNotionSaving(false);
+    }
+  }
+
   async function handleGithubSave() {
     clearMessages();
 
@@ -253,6 +279,29 @@ export default function SiteDetailPage() {
         setGithubToken("");
         setGithubRepo("");
       }
+    } catch {
+      setError("Network error");
+    } finally {
+      setGithubSaving(false);
+    }
+  }
+
+  async function handleGithubToggle(enabled: boolean) {
+    clearMessages();
+    setGithubSaving(true);
+    try {
+      const res = await fetch(`/api/sites/${siteId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ githubEnabled: enabled }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to update GitHub status");
+        return;
+      }
+      setSite(data.site);
+      setSuccess(enabled ? "GitHub integration enabled" : "GitHub integration disabled");
     } catch {
       setError("Network error");
     } finally {
@@ -349,6 +398,29 @@ export default function SiteDetailPage() {
       }
 
       setSuccess(data.message || "Webhook verification succeeded");
+    } catch {
+      setError("Network error");
+    } finally {
+      setWebhookSaving(false);
+    }
+  }
+
+  async function handleWebhookToggle(enabled: boolean) {
+    clearMessages();
+    setWebhookSaving(true);
+    try {
+      const res = await fetch(`/api/sites/${siteId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ webhookEnabled: enabled }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to update webhook status");
+        return;
+      }
+      setSite(data.site);
+      setSuccess(enabled ? "Webhook integration enabled" : "Webhook integration disabled");
     } catch {
       setError("Network error");
     } finally {
@@ -525,9 +597,9 @@ export default function SiteDetailPage() {
               <h2 className="text-lg font-semibold text-gray-900">Notion Integration</h2>
             </div>
             {notionConnected && (
-              <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">
-                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                Connected
+              <span className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${site.notionEnabled ? "text-emerald-700 bg-emerald-50" : "text-amber-700 bg-amber-50"}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${site.notionEnabled ? "bg-emerald-500" : "bg-amber-500"}`} />
+                {site.notionEnabled ? "Enabled" : "Disabled"}
               </span>
             )}
           </div>
@@ -557,6 +629,19 @@ export default function SiteDetailPage() {
               >
                 {notionConnected ? "Update credentials" : "Configure Notion"}
               </button>
+              {notionConnected && (
+                <button
+                  onClick={() => handleNotionToggle(!site.notionEnabled)}
+                  disabled={notionSaving}
+                  className="ml-4 text-sm text-gray-600 hover:text-gray-800 font-medium disabled:opacity-50"
+                >
+                  {notionSaving
+                    ? "Saving..."
+                    : site.notionEnabled
+                      ? "Disable integration"
+                      : "Enable integration"}
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
@@ -641,9 +726,9 @@ export default function SiteDetailPage() {
               <h2 className="text-lg font-semibold text-gray-900">GitHub Integration</h2>
             </div>
             {githubConnected && (
-              <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">
-                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                Connected
+              <span className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${site.githubEnabled ? "text-emerald-700 bg-emerald-50" : "text-amber-700 bg-amber-50"}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${site.githubEnabled ? "bg-emerald-500" : "bg-amber-500"}`} />
+                {site.githubEnabled ? "Enabled" : "Disabled"}
               </span>
             )}
           </div>
@@ -673,6 +758,19 @@ export default function SiteDetailPage() {
               >
                 {githubConnected ? "Update credentials" : "Configure GitHub"}
               </button>
+              {githubConnected && (
+                <button
+                  onClick={() => handleGithubToggle(!site.githubEnabled)}
+                  disabled={githubSaving}
+                  className="ml-4 text-sm text-gray-600 hover:text-gray-800 font-medium disabled:opacity-50"
+                >
+                  {githubSaving
+                    ? "Saving..."
+                    : site.githubEnabled
+                      ? "Disable integration"
+                      : "Enable integration"}
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
@@ -754,9 +852,9 @@ export default function SiteDetailPage() {
               <h2 className="text-lg font-semibold text-gray-900">Webhook Integration</h2>
             </div>
             {webhookConnected && (
-              <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">
-                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                Connected
+              <span className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${site.webhookEnabled ? "text-emerald-700 bg-emerald-50" : "text-amber-700 bg-amber-50"}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${site.webhookEnabled ? "bg-emerald-500" : "bg-amber-500"}`} />
+                {site.webhookEnabled ? "Enabled" : "Disabled"}
               </span>
             )}
           </div>
@@ -787,6 +885,19 @@ export default function SiteDetailPage() {
                 >
                   {webhookConnected ? "Update webhook" : "Configure webhook"}
                 </button>
+                {webhookConnected && (
+                  <button
+                    onClick={() => handleWebhookToggle(!site.webhookEnabled)}
+                    disabled={webhookSaving}
+                    className="text-sm text-gray-600 hover:text-gray-800 font-medium disabled:opacity-50"
+                  >
+                    {webhookSaving
+                      ? "Saving..."
+                      : site.webhookEnabled
+                        ? "Disable integration"
+                        : "Enable integration"}
+                  </button>
+                )}
                 {webhookConnected && (
                   <button
                     onClick={handleWebhookVerify}

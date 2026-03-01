@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { createToken } from "@/lib/auth";
 import { verifyNotionCredentials } from "@/lib/notion";
 import { verifyGithubCredentials } from "@/lib/github";
+import { verifyWebhookCredentials } from "@/lib/webhook";
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,6 +18,8 @@ export async function POST(request: NextRequest) {
       notionDbId,
       githubToken,
       githubRepo,
+      webhookUrl,
+      webhookToken,
     } = await request.json();
 
     if (!tenantName || !adminEmail || !adminPassword) {
@@ -76,6 +79,31 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const wUrl = webhookUrl?.trim() || "";
+    const wToken = webhookToken?.trim() || "";
+    const hasWebhook = !!(wUrl && wToken);
+    if (wUrl && !wToken) {
+      return NextResponse.json(
+        { error: "Webhook bearer token is required when providing a callback URL" },
+        { status: 400 }
+      );
+    }
+    if (!wUrl && wToken) {
+      return NextResponse.json(
+        { error: "Webhook callback URL is required when providing a bearer token" },
+        { status: 400 }
+      );
+    }
+    if (hasWebhook) {
+      const check = await verifyWebhookCredentials(wUrl, wToken);
+      if (!check.valid) {
+        return NextResponse.json(
+          { error: `Webhook: ${check.error}` },
+          { status: 400 }
+        );
+      }
+    }
+
     const existingAdmin = await prisma.admin.findUnique({
       where: { email: adminEmail },
     });
@@ -107,6 +135,8 @@ export async function POST(request: NextRequest) {
             notionDbId: hasNotion ? nDb : null,
             githubToken: hasGithub ? gToken : null,
             githubRepo: hasGithub ? gRepo : null,
+            webhookUrl: hasWebhook ? wUrl : null,
+            webhookToken: hasWebhook ? wToken : null,
           },
         },
       },

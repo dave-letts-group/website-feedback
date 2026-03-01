@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { verifyApiKey, extractApiKey } from "@/lib/apiKey";
 import { syncFeedbackToNotion } from "@/lib/notion";
 import { syncFeedbackToGithub } from "@/lib/github";
+import { syncFeedbackToWebhook } from "@/lib/webhook";
 import { sendFeedbackReceivedEmail } from "@/lib/email";
 import { checkOrigin, corsHeaders } from "@/lib/origin";
 
@@ -139,6 +140,7 @@ export async function POST(request: NextRequest) {
     await Promise.all([
       syncFeedbackToNotion(site.id, feedback.id, feedbackData),
       syncFeedbackToGithub(site.id, feedback.id, feedbackData),
+      syncFeedbackToWebhook(site.id, feedback.id, feedbackData),
     ]);
 
     notifyTeamOfFeedback(site.id, site.tenantId, feedback.id, feedbackData, site.name);

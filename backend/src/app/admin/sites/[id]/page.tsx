@@ -12,6 +12,8 @@ interface SiteData {
   notionDbId: string | null;
   githubToken: string | null;
   githubRepo: string | null;
+  webhookUrl: string | null;
+  webhookToken: string | null;
   createdAt: string;
 }
 
@@ -45,6 +47,12 @@ export default function SiteDetailPage() {
   const [githubRepo, setGithubRepo] = useState("");
   const [githubSaving, setGithubSaving] = useState(false);
 
+  // Webhook state
+  const [webhookEditing, setWebhookEditing] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [webhookToken, setWebhookToken] = useState("");
+  const [webhookSaving, setWebhookSaving] = useState(false);
+
   const fetchSite = useCallback(async () => {
     try {
       const res = await fetch(`/api/sites/${siteId}`);
@@ -58,6 +66,7 @@ export default function SiteDetailPage() {
       setDomain(data.site.domain || "");
       setNotionDbId(data.site.notionDbId || "");
       setGithubRepo(data.site.githubRepo || "");
+      setWebhookUrl(data.site.webhookUrl || "");
     } catch {
       setError("Failed to load site");
     } finally {
@@ -251,6 +260,102 @@ export default function SiteDetailPage() {
     }
   }
 
+  async function handleWebhookSave() {
+    clearMessages();
+
+    if (webhookToken && !webhookUrl) {
+      setError("Webhook callback URL is required when setting a bearer token");
+      return;
+    }
+    const hasExistingToken = site?.webhookToken && site.webhookToken !== "null";
+    if (webhookUrl && !webhookToken && !hasExistingToken) {
+      setError("Webhook bearer token is required when setting a callback URL");
+      return;
+    }
+
+    setWebhookSaving(true);
+    try {
+      const body: Record<string, string> = { webhookUrl };
+      if (webhookToken) body.webhookToken = webhookToken;
+
+      const res = await fetch(`/api/sites/${siteId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to save webhook settings");
+        return;
+      }
+
+      setSite(data.site);
+      setSuccess("Webhook settings saved and verified");
+      setWebhookEditing(false);
+      setWebhookToken("");
+    } catch {
+      setError("Network error");
+    } finally {
+      setWebhookSaving(false);
+    }
+  }
+
+  async function handleWebhookDisconnect() {
+    clearMessages();
+    setWebhookSaving(true);
+    try {
+      const res = await fetch(`/api/sites/${siteId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ webhookUrl: null, webhookToken: null }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSite(data.site);
+        setSuccess("Webhook disconnected");
+        setWebhookEditing(false);
+        setWebhookToken("");
+        setWebhookUrl("");
+      } else {
+        setError(data.error || "Failed to disconnect webhook");
+      }
+    } catch {
+      setError("Network error");
+    } finally {
+      setWebhookSaving(false);
+    }
+  }
+
+  async function handleWebhookVerify() {
+    clearMessages();
+    setWebhookSaving(true);
+    try {
+      const body: Record<string, string> = {};
+      if (webhookEditing) {
+        if (webhookUrl) body.webhookUrl = webhookUrl;
+        if (webhookToken) body.webhookToken = webhookToken;
+      }
+
+      const res = await fetch(`/api/sites/${siteId}/webhook/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Webhook verification failed");
+        return;
+      }
+
+      setSuccess(data.message || "Webhook verification succeeded");
+    } catch {
+      setError("Network error");
+    } finally {
+      setWebhookSaving(false);
+    }
+  }
+
   function copySiteKey() {
     if (!site) return;
     navigator.clipboard.writeText(site.siteKey);
@@ -272,6 +377,7 @@ export default function SiteDetailPage() {
 
   const notionConnected = site?.notionApiKey && site.notionApiKey !== "null" && site?.notionDbId;
   const githubConnected = site?.githubToken && site.githubToken !== "null" && site?.githubRepo;
+  const webhookConnected = site?.webhookToken && site.webhookToken !== "null" && site?.webhookUrl;
 
   if (loading) {
     return (
@@ -633,6 +739,121 @@ export default function SiteDetailPage() {
                   <li>Issue body includes all feedback details and metadata</li>
                   <li>A link back to the admin portal is included</li>
                 </ul>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Webhook Integration */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l-3 3 3 3M16 9l3 3-3 3M13 7l-2 10" />
+              </svg>
+              <h2 className="text-lg font-semibold text-gray-900">Webhook Integration</h2>
+            </div>
+            {webhookConnected && (
+              <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                Connected
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-500 mb-4">
+            Send a JSON payload of the feedback object to your callback URL whenever feedback is received.
+          </p>
+
+          {!webhookEditing ? (
+            <div className="space-y-3">
+              <dl className="text-sm space-y-2">
+                <div className="flex items-center justify-between">
+                  <dt className="text-gray-400 font-medium">Callback URL</dt>
+                  <dd className="text-gray-700 font-mono text-xs truncate max-w-[280px]">
+                    {site.webhookUrl || "Not set"}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <dt className="text-gray-400 font-medium">Bearer Token</dt>
+                  <dd className="text-gray-700 font-mono text-xs">
+                    {site.webhookToken && site.webhookToken !== "null" ? site.webhookToken : "Not set"}
+                  </dd>
+                </div>
+              </dl>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setWebhookEditing(true)}
+                  className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                >
+                  {webhookConnected ? "Update webhook" : "Configure webhook"}
+                </button>
+                {webhookConnected && (
+                  <button
+                    onClick={handleWebhookVerify}
+                    disabled={webhookSaving}
+                    className="text-sm text-gray-600 hover:text-gray-800 font-medium disabled:opacity-50"
+                  >
+                    {webhookSaving ? "Verifying..." : "Verify now"}
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Callback URL
+                </label>
+                <input
+                  type="url"
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  placeholder="https://example.com/webhooks/feedback"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Bearer Token {webhookConnected ? "(leave blank to keep current)" : ""}
+                </label>
+                <input
+                  type="password"
+                  value={webhookToken}
+                  onChange={(e) => setWebhookToken(e.target.value)}
+                  placeholder="whsec_..."
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
+                />
+              </div>
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  onClick={handleWebhookSave}
+                  disabled={webhookSaving}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                >
+                  {webhookSaving ? "Verifying..." : "Save & Verify"}
+                </button>
+                <button
+                  onClick={handleWebhookVerify}
+                  disabled={webhookSaving}
+                  className="px-4 py-2 text-gray-600 text-sm font-medium hover:text-gray-800 disabled:opacity-50"
+                >
+                  Verify only
+                </button>
+                <button
+                  onClick={() => { setWebhookEditing(false); setWebhookToken(""); clearMessages(); }}
+                  className="px-4 py-2 text-gray-600 text-sm font-medium hover:text-gray-800"
+                >
+                  Cancel
+                </button>
+                {webhookConnected && (
+                  <button
+                    onClick={handleWebhookDisconnect}
+                    disabled={webhookSaving}
+                    className="ml-auto px-4 py-2 text-red-600 text-sm font-medium hover:text-red-700 disabled:opacity-50"
+                  >
+                    Disconnect
+                  </button>
+                )}
               </div>
             </div>
           )}

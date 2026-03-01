@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSession, requireRole } from "@/lib/auth";
 import { verifyNotionCredentials } from "@/lib/notion";
 import { verifyGithubCredentials } from "@/lib/github";
+import { verifyWebhookCredentials } from "@/lib/webhook";
 
 function maskSecret(value: string | null): string | null {
   return value ? "••••••••" : null;
@@ -28,6 +29,7 @@ export async function GET(
       ...site,
       notionApiKey: maskSecret(site.notionApiKey),
       githubToken: maskSecret(site.githubToken),
+      webhookToken: maskSecret(site.webhookToken),
     },
   });
 }
@@ -52,7 +54,16 @@ export async function PATCH(
 
   try {
     const body = await request.json();
-    const { name, domain, notionApiKey, notionDbId, githubToken, githubRepo } =
+    const {
+      name,
+      domain,
+      notionApiKey,
+      notionDbId,
+      githubToken,
+      githubRepo,
+      webhookUrl,
+      webhookToken,
+    } =
       body;
 
     if (notionApiKey && notionDbId) {
@@ -70,6 +81,40 @@ export async function PATCH(
       if (!check.valid) {
         return NextResponse.json(
           { error: `GitHub: ${check.error}`, githubError: true },
+          { status: 400 },
+        );
+      }
+    }
+
+    const nextWebhookUrl =
+      webhookUrl !== undefined ? webhookUrl?.trim() || null : site.webhookUrl;
+    const nextWebhookToken =
+      webhookToken !== undefined
+        ? webhookToken?.trim() || null
+        : site.webhookToken;
+
+    if (nextWebhookUrl && !nextWebhookToken) {
+      return NextResponse.json(
+        { error: "Webhook bearer token is required when setting a callback URL" },
+        { status: 400 },
+      );
+    }
+    if (!nextWebhookUrl && nextWebhookToken) {
+      return NextResponse.json(
+        { error: "Webhook callback URL is required when setting a bearer token" },
+        { status: 400 },
+      );
+    }
+
+    if (
+      (webhookUrl !== undefined || webhookToken !== undefined) &&
+      nextWebhookUrl &&
+      nextWebhookToken
+    ) {
+      const check = await verifyWebhookCredentials(nextWebhookUrl, nextWebhookToken);
+      if (!check.valid) {
+        return NextResponse.json(
+          { error: `Webhook: ${check.error}`, webhookError: true },
           { status: 400 },
         );
       }
@@ -96,6 +141,9 @@ export async function PATCH(
       data.githubRepo = null;
     }
 
+    if (webhookUrl !== undefined) data.webhookUrl = nextWebhookUrl;
+    if (webhookToken !== undefined) data.webhookToken = nextWebhookToken;
+
     const updated = await prisma.site.update({ where: { id }, data });
 
     return NextResponse.json({
@@ -103,6 +151,7 @@ export async function PATCH(
         ...updated,
         notionApiKey: maskSecret(updated.notionApiKey),
         githubToken: maskSecret(updated.githubToken),
+        webhookToken: maskSecret(updated.webhookToken),
       },
     });
   } catch (error) {

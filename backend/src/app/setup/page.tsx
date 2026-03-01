@@ -15,6 +15,8 @@ export default function SetupPage() {
     notionDbId: "",
     githubToken: "",
     githubRepo: "",
+    webhookUrl: "",
+    webhookToken: "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -206,6 +208,30 @@ export default function SetupPage() {
               <p className="text-xs text-gray-400 mt-1">
                 Format: owner/repository-name (e.g. acme/my-app)
               </p>
+            </div>
+          </fieldset>
+
+          <fieldset className="space-y-4 pt-4 border-t border-gray-100">
+            <legend className="text-sm font-semibold text-gray-900 mb-1">Webhook Integration (optional)</legend>
+            <p className="text-xs text-gray-400 mb-2">
+              Send a webhook when new feedback is received.
+              Provide a callback URL and bearer token for authorization.
+            </p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Callback URL</label>
+              <input
+                type="url" value={form.webhookUrl} onChange={(e) => update("webhookUrl", e.target.value)}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900"
+                placeholder="https://example.com/webhooks/feedback"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Bearer Token</label>
+              <input
+                type="password" value={form.webhookToken} onChange={(e) => update("webhookToken", e.target.value)}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900"
+                placeholder="whsec_..."
+              />
             </div>
           </fieldset>
 

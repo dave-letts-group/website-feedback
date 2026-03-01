@@ -28,6 +28,8 @@ model Site {
   notionDbId   String?
   githubToken  String?
   githubRepo   String?
+  webhookUrl   String?
+  webhookToken String?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   feedback     Feedback[]

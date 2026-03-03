@@ -203,7 +203,14 @@ export default function SettingsPage() {
       const res = await fetch(`/api/sites/${selectedSiteId}/api-keys/${keyId}`, { method: "DELETE" });
       if (res.ok) {
         setApiKeys((prev) => prev.filter((k) => k.id !== keyId));
+      } else {
+        const error = await res.json();
+        console.error("Failed to revoke API key:", error);
+        alert(`Failed to revoke key: ${error.error || "Unknown error"}`);
       }
+    } catch (error) {
+      console.error("Error revoking API key:", error);
+      alert("Failed to revoke key - please try again");
     } finally {
       setRevoking(null);
     }

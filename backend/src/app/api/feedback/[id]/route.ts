@@ -89,7 +89,7 @@ export async function PATCH(
   // Try API key auth (requires feedback:write permission)
   const apiKey = extractApiKey(request.headers);
   if (apiKey) {
-    const verified = await verifyApiKey(apiKey, ["feedback:read", "feedback:write"]);
+    const verified = await verifyApiKey(apiKey, ["feedback:write"]);
     if (!verified) {
       return NextResponse.json(
         { error: "Invalid API key or insufficient permissions" },

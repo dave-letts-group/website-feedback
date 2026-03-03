@@ -29,6 +29,7 @@ export default function LoginPage() {
       }
 
       router.push("/admin");
+      router.refresh();
     } catch {
       setError("Network error. Please try again.");
     } finally {

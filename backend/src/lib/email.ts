@@ -35,8 +35,8 @@ function getMailjet() {
   return _mailjet;
 }
 
-const FROM_EMAIL = "notifcations@pawafx.pawapay.co.uk";
-const FROM_NAME = "WebFeedback";
+const FROM_EMAIL = process.env.MAILJET_FROM_EMAIL;
+const FROM_NAME = process.env.MAILJET_FROM_NAME;
 
 interface InviteEmailParams {
   to: string;

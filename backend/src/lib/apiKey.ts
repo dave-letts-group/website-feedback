@@ -27,17 +27,24 @@ export async function verifyApiKey(
   });
 
   if (!apiKey) {
+    console.log(`[DEBUG] Key not found in findUnique for: ${normalizedKey.substring(0, 8)}...`);
     // Fallback search in case it was stored differently (though it shouldn't be)
     const fallbackKey = await prisma.apiKey.findFirst({
       where: { key: { equals: normalizedKey, mode: 'insensitive' } },
       include: { site: true },
     });
 
-    if (!fallbackKey) return null;
+    if (!fallbackKey) {
+      console.log(`[DEBUG] Key not found in findFirst (insensitive) for: ${normalizedKey.substring(0, 8)}...`);
+      return null;
+    }
+
+    console.log(`[DEBUG] Found fallback key: ${fallbackKey.name}`);
 
     // Check permissions for fallback key
     const fbPermissions = Array.isArray(fallbackKey.permissions) ? fallbackKey.permissions : [];
     if (!requiredPermissions.every((p) => fbPermissions.includes(p))) {
+      console.log(`[DEBUG] Insufficient permissions for fallback key. Required: ${requiredPermissions}, Found: ${fbPermissions}`);
       return null;
     }
 
@@ -46,18 +53,22 @@ export async function verifyApiKey(
       siteId: fallbackKey.siteId,
       tenantId: fallbackKey.tenantId,
       name: fallbackKey.name,
-      permissions: fallbackKey.permissions,
+      permissions: fallbackKey.permissions as string[],
     };
   }
 
+  console.log(`[DEBUG] Found API key: ${apiKey.name}`);
+
   // Check if expired
   if (apiKey.expiresAt && apiKey.expiresAt < new Date()) {
+    console.log(`[DEBUG] API key expired at: ${apiKey.expiresAt}`);
     return null;
   }
 
   // Check permissions - ensure permissions is an array
   const keyPermissions = Array.isArray(apiKey.permissions) ? apiKey.permissions : [];
   if (!requiredPermissions.every((p) => keyPermissions.includes(p))) {
+    console.log(`[DEBUG] Insufficient permissions. Required: ${requiredPermissions}, Found: ${keyPermissions}`);
     return null;
   }
 

@@ -47,6 +47,7 @@ export default function SettingsPage() {
   const [keyCreating, setKeyCreating] = useState(false);
   const [keyError, setKeyError] = useState("");
   const [keySuccess, setKeySuccess] = useState("");
+  const [newKeyPermissions, setNewKeyPermissions] = useState<string[]>(["feedback:read", "feedback:write"]);
   const [revoking, setRevoking] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
@@ -179,7 +180,10 @@ export default function SettingsPage() {
       const res = await fetch(`/api/sites/${selectedSiteId}/api-keys`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newKeyName }),
+        body: JSON.stringify({
+          name: newKeyName,
+          permissions: newKeyPermissions
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -338,7 +342,14 @@ export default function SettingsPage() {
                   <div key={key.id} className="flex items-center justify-between px-4 py-3 bg-white">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{key.name}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {key.permissions.map(p => (
+                          <span key={p} className="px-1.5 py-0.5 bg-gray-100 text-[10px] font-bold text-gray-600 rounded uppercase tracking-wider">
+                            {p.split(':')[1]}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">
                         Created {formatDate(key.createdAt)} · Last used {formatDate(key.lastUsedAt)}
                         {key.expiresAt && ` · Expires ${formatDate(key.expiresAt)}`}
                       </p>
@@ -357,22 +368,52 @@ export default function SettingsPage() {
 
             {/* Create new key */}
             {canManageTenant && (
-              <form onSubmit={handleCreateKey} className="flex items-center gap-2 mt-2">
-                <input
-                  type="text"
-                  value={newKeyName}
-                  onChange={(e) => setNewKeyName(e.target.value)}
-                  placeholder="Key name (e.g. Production)"
-                  required
-                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
-                />
-                <button
-                  type="submit"
-                  disabled={keyCreating}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors whitespace-nowrap"
-                >
-                  {keyCreating ? "Creating..." : "Create Key"}
-                </button>
+              <form onSubmit={handleCreateKey} className="space-y-3 mt-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={newKeyName}
+                    onChange={(e) => setNewKeyName(e.target.value)}
+                    placeholder="Key name (e.g. Production)"
+                    required
+                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
+                  />
+                  <button
+                    type="submit"
+                    disabled={keyCreating}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors whitespace-nowrap"
+                  >
+                    {keyCreating ? "Creating..." : "Create Key"}
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-4 px-1">
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Permissions:</label>
+                  <label className="flex items-center gap-1.5 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={newKeyPermissions.includes("feedback:read")}
+                      onChange={(e) => {
+                        if (e.target.checked) setNewKeyPermissions(prev => [...prev, "feedback:read"]);
+                        else setNewKeyPermissions(prev => prev.filter(p => p !== "feedback:read"));
+                      }}
+                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                    />
+                    <span className="text-sm text-gray-600 group-hover:text-gray-900">Read</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={newKeyPermissions.includes("feedback:write")}
+                      onChange={(e) => {
+                        if (e.target.checked) setNewKeyPermissions(prev => [...prev, "feedback:write"]);
+                        else setNewKeyPermissions(prev => prev.filter(p => p !== "feedback:write"));
+                      }}
+                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                    />
+                    <span className="text-sm text-gray-600 group-hover:text-gray-900">Write</span>
+                  </label>
+                </div>
               </form>
             )}
             {keyError && (

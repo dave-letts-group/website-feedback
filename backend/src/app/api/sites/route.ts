@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Try API key auth
-  const apiKey = extractApiKey(request.headers);
+  const apiKey = extractApiKey(request);
   if (apiKey) {
     const verified = await verifyApiKey(apiKey, ["sites:read"]);
     if (!verified) {
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     }
     tenantId = session.tenantId;
   } else {
-    const apiKey = extractApiKey(request.headers);
+    const apiKey = extractApiKey(request);
     if (!apiKey) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

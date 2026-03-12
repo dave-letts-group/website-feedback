@@ -32,7 +32,15 @@ export async function verifyApiKey(
       where: { key: { equals: normalizedKey, mode: 'insensitive' } },
       include: { site: true },
     });
+
     if (!fallbackKey) return null;
+
+    // Check permissions for fallback key
+    const fbPermissions = Array.isArray(fallbackKey.permissions) ? fallbackKey.permissions : [];
+    if (!requiredPermissions.every((p) => fbPermissions.includes(p))) {
+      return null;
+    }
+
     return {
       id: fallbackKey.id,
       siteId: fallbackKey.siteId,
@@ -92,9 +100,13 @@ export function extractApiKey(request: Request): string | null {
   }
 
   // 3. Try query parameter (fallback for quick testing)
-  const url = new URL(request.url);
-  const queryKey = url.searchParams.get("api_key") || url.searchParams.get("key");
-  if (queryKey) return queryKey;
+  try {
+    const url = new URL(request.url);
+    const queryKey = url.searchParams.get("api_key") || url.searchParams.get("key");
+    if (queryKey) return queryKey;
+  } catch {
+    // URL parsing might fail for partial paths
+  }
 
   return null;
 }

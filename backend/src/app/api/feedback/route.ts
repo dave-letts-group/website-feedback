@@ -177,13 +177,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    console.log(`[DEBUG] API Key extracted: ${apiKey.substring(0, 8)}...`);
     const verified = await verifyApiKey(apiKey, ["feedback:read"]);
+
     if (!verified) {
+      console.log(`[DEBUG] API Key verification failed for key starting with ${apiKey.substring(0, 8)}`);
       return NextResponse.json(
         { error: "Invalid or expired API key" },
         { status: 401 }
       );
     }
+    console.log(`[DEBUG] API Key verified successfully. Tenant: ${verified.tenantId}, Site: ${verified.siteId}`);
 
     tenantId = verified.tenantId;
     siteFilter = verified.siteId; // API key is scoped to specific site

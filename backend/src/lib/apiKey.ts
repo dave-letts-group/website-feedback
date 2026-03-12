@@ -18,13 +18,28 @@ export async function verifyApiKey(
   key: string,
   requiredPermissions: string[]
 ): Promise<ApiKeyPayload | null> {
+  // Case-insensitive key check (hex keys should be lowercase)
+  const normalizedKey = key.trim().toLowerCase();
+
   const apiKey = await prisma.apiKey.findUnique({
-    where: { key },
+    where: { key: normalizedKey },
     include: { site: true },
   });
 
   if (!apiKey) {
-    return null;
+    // Fallback search in case it was stored differently (though it shouldn't be)
+    const fallbackKey = await prisma.apiKey.findFirst({
+      where: { key: { equals: normalizedKey, mode: 'insensitive' } },
+      include: { site: true },
+    });
+    if (!fallbackKey) return null;
+    return {
+      id: fallbackKey.id,
+      siteId: fallbackKey.siteId,
+      tenantId: fallbackKey.tenantId,
+      name: fallbackKey.name,
+      permissions: fallbackKey.permissions,
+    };
   }
 
   // Check if expired
@@ -32,8 +47,9 @@ export async function verifyApiKey(
     return null;
   }
 
-  // Check permissions
-  if (!requiredPermissions.every((p) => apiKey.permissions.includes(p))) {
+  // Check permissions - ensure permissions is an array
+  const keyPermissions = Array.isArray(apiKey.permissions) ? apiKey.permissions : [];
+  if (!requiredPermissions.every((p) => keyPermissions.includes(p))) {
     return null;
   }
 
@@ -56,17 +72,31 @@ export async function verifyApiKey(
   };
 }
 
-/**
- * Extract an API key from a request.
- * Accepts: Authorization: Bearer <key>  (preferred for agents)
- * Falls back to: X-API-Key: <key>       (legacy header)
- */
-export function extractApiKey(headers: Headers): string | null {
+export function extractApiKey(request: Request): string | null {
+  const headers = request.headers;
+
+  // 1. Try Authorization header
   const auth = headers.get("authorization");
   if (auth?.toLowerCase().startsWith("bearer ")) {
     return auth.slice(7).trim() || null;
   }
-  return headers.get("x-api-key");
+
+  // 2. Try X-API-Key header
+  let xApiKey = headers.get("x-api-key");
+  if (xApiKey) {
+    // Handle case where people put "Bearer " in X-API-Key too
+    if (xApiKey.toLowerCase().startsWith("bearer ")) {
+      xApiKey = xApiKey.slice(7).trim();
+    }
+    return xApiKey || null;
+  }
+
+  // 3. Try query parameter (fallback for quick testing)
+  const url = new URL(request.url);
+  const queryKey = url.searchParams.get("api_key") || url.searchParams.get("key");
+  if (queryKey) return queryKey;
+
+  return null;
 }
 
 /**

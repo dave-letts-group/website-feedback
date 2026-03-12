@@ -16,7 +16,7 @@ async function getTenantAndSite(request: NextRequest): Promise<{
   }
 
   // Try API key auth
-  const apiKey = extractApiKey(request.headers);
+  const apiKey = extractApiKey(request);
   if (apiKey) {
     const verified = await verifyApiKey(apiKey, ["feedback:read"]);
     if (verified) {
@@ -87,7 +87,7 @@ export async function PATCH(
   }
 
   // Try API key auth (requires feedback:write permission)
-  const apiKey = extractApiKey(request.headers);
+  const apiKey = extractApiKey(request);
   if (apiKey) {
     const verified = await verifyApiKey(apiKey, ["feedback:write"]);
     if (!verified) {

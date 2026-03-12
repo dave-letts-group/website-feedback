@@ -169,7 +169,7 @@ export async function GET(request: NextRequest) {
   if (session) {
     tenantId = session.tenantId;
   } else {
-    const apiKey = extractApiKey(request.headers);
+    const apiKey = extractApiKey(request);
     if (!apiKey) {
       return NextResponse.json(
         { error: "Unauthorized - session or Bearer token required" },

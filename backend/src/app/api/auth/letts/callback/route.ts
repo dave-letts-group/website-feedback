@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { createToken } from "@/lib/auth";
+import type { LettsTokenResponse } from "@/lib/letts-auth";
 import {
   COOKIE_OAUTH,
   attachLettsRefreshCookie,
@@ -16,6 +17,68 @@ import {
 
 function redirect(request: NextRequest, path: string) {
   return NextResponse.redirect(new URL(path, request.url));
+}
+
+async function findAdminForLettsProfile(emailRaw: string, email: string, sub: string) {
+  let admin = await prisma.admin.findFirst({
+    where: { lettsSub: sub },
+  });
+  if (!admin) {
+    admin = await prisma.admin.findFirst({
+      where: {
+        OR: [{ email: emailRaw }, { email }],
+      },
+    });
+  }
+  return admin;
+}
+
+/** Issue session and redirect to dashboard (shared by login + setup when account exists). */
+async function completeLettsAuthenticatedSession(
+  request: NextRequest,
+  admin: {
+    id: string;
+    tenantId: string;
+    role: string;
+    isSuperAdmin: boolean;
+    lettsSub: string | null;
+  },
+  sub: string,
+  tokens: LettsTokenResponse,
+): Promise<NextResponse> {
+  if (admin.lettsSub && admin.lettsSub !== sub) {
+    const r = redirect(request, "/admin/login?letts_error=account_conflict");
+    clearLettsOAuthCookie(r);
+    return r;
+  }
+
+  if (!admin.lettsSub) {
+    await prisma.admin.update({
+      where: { id: admin.id },
+      data: { lettsSub: sub },
+    });
+  }
+
+  const authToken = await createToken({
+    adminId: admin.id,
+    tenantId: admin.tenantId,
+    role: admin.role,
+    isSuperAdmin: admin.isSuperAdmin,
+  });
+
+  const r = redirect(request, "/admin");
+  clearLettsOAuthCookie(r);
+  r.cookies.set("auth-token", authToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 7,
+    path: "/",
+  });
+  if (tokens.refresh_token) {
+    attachLettsRefreshCookie(r, tokens.refresh_token);
+  }
+  return r;
 }
 
 export async function GET(request: NextRequest) {
@@ -84,6 +147,16 @@ export async function GET(request: NextRequest) {
   const sub = profile.sub;
 
   if (payload.intent === "setup") {
+    const existingAdmin = await findAdminForLettsProfile(emailRaw, email, sub);
+    if (existingAdmin) {
+      return completeLettsAuthenticatedSession(
+        request,
+        existingAdmin,
+        sub,
+        tokens,
+      );
+    }
+
     const setupJwt = await signLettsSetupAssertion({ email, name, sub });
     const r = redirect(request, "/setup");
     clearLettsOAuthCookie(r);
@@ -176,17 +249,7 @@ export async function GET(request: NextRequest) {
   }
 
   // login
-  let admin = await prisma.admin.findFirst({
-    where: { lettsSub: sub },
-  });
-
-  if (!admin) {
-    admin = await prisma.admin.findFirst({
-      where: {
-        OR: [{ email: emailRaw }, { email }],
-      },
-    });
-  }
+  const admin = await findAdminForLettsProfile(emailRaw, email, sub);
 
   if (!admin) {
     const r = redirect(request, "/admin/login?letts_error=no_account");
@@ -194,37 +257,5 @@ export async function GET(request: NextRequest) {
     return r;
   }
 
-  if (admin.lettsSub && admin.lettsSub !== sub) {
-    const r = redirect(request, "/admin/login?letts_error=account_conflict");
-    clearLettsOAuthCookie(r);
-    return r;
-  }
-
-  if (!admin.lettsSub) {
-    await prisma.admin.update({
-      where: { id: admin.id },
-      data: { lettsSub: sub },
-    });
-  }
-
-  const authToken = await createToken({
-    adminId: admin.id,
-    tenantId: admin.tenantId,
-    role: admin.role,
-    isSuperAdmin: admin.isSuperAdmin,
-  });
-
-  const r = redirect(request, "/admin");
-  clearLettsOAuthCookie(r);
-  r.cookies.set("auth-token", authToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 7,
-    path: "/",
-  });
-  if (tokens.refresh_token) {
-    attachLettsRefreshCookie(r, tokens.refresh_token);
-  }
-  return r;
+  return completeLettsAuthenticatedSession(request, admin, sub, tokens);
 }

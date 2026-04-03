@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
+import { LettsSsoButton, LettsSsoDivider } from "@/components/letts-sso-button";
+import { inviteLettsErrorMessage } from "@/lib/letts-errors";
 
 interface InviteDetails {
   email: string;
@@ -16,9 +18,10 @@ const ROLE_LABEL: Record<string, string> = {
   member: "a Member",
 };
 
-export default function InviteAcceptPage() {
+function InviteAcceptInner() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const token = params.token as string;
 
   const [invite, setInvite] = useState<InviteDetails | null>(null);
@@ -29,6 +32,12 @@ export default function InviteAcceptPage() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [lettsUrlError, setLettsUrlError] = useState("");
+
+  useEffect(() => {
+    const msg = inviteLettsErrorMessage(searchParams.get("letts_error"));
+    if (msg) setLettsUrlError(msg);
+  }, [searchParams]);
 
   useEffect(() => {
     async function fetchInvite() {
@@ -53,8 +62,10 @@ export default function InviteAcceptPage() {
     e.preventDefault();
     setSubmitError("");
 
-    if (password.length < 8) {
-      setSubmitError("Password must be at least 8 characters");
+    if (!password || password.length < 8) {
+      setSubmitError(
+        "Enter a password (8+ characters) or use Continue with LettsGroup.",
+      );
       return;
     }
 
@@ -132,6 +143,15 @@ export default function InviteAcceptPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
+              {lettsUrlError && (
+                <div className="bg-amber-50 text-amber-900 text-sm px-4 py-3 rounded-lg border border-amber-100">
+                  {lettsUrlError}
+                </div>
+              )}
+
+              <LettsSsoButton intent="invite" inviteToken={token} variant="light" />
+              <LettsSsoDivider variant="light" />
+
               {submitError && (
                 <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg border border-red-100">
                   {submitError}
@@ -150,12 +170,13 @@ export default function InviteAcceptPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Password (if not using LettsGroup above)
+                </label>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  required
                   minLength={8}
                   placeholder="Minimum 8 characters"
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900"
@@ -181,5 +202,19 @@ export default function InviteAcceptPage() {
         ) : null}
       </div>
     </div>
+  );
+}
+
+export default function InviteAcceptPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 px-4 text-slate-400 text-sm">
+          Loading…
+        </div>
+      }
+    >
+      <InviteAcceptInner />
+    </Suspense>
   );
 }

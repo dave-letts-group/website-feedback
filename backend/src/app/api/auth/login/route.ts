@@ -15,10 +15,19 @@ export async function POST(request: NextRequest) {
     }
 
     const admin = await prisma.admin.findUnique({ where: { email } });
-    if (!admin || !(await bcrypt.compare(password, admin.password))) {
+    if (!admin?.password) {
+      return NextResponse.json(
+        {
+          error:
+            "This account uses LettsGroup sign-in. Use “Continue with LettsGroup” on the login page.",
+        },
+        { status: 401 },
+      );
+    }
+    if (!(await bcrypt.compare(password, admin.password))) {
       return NextResponse.json(
         { error: "Invalid credentials" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 

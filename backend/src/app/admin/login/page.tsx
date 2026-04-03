@@ -1,14 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { LettsSsoButton, LettsSsoDivider } from "@/components/letts-sso-button";
+import { loginLettsErrorMessage } from "@/lib/letts-errors";
 
-export default function LoginPage() {
+function LoginPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const msg = loginLettsErrorMessage(searchParams.get("letts_error"));
+    if (msg) setError(msg);
+  }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -72,6 +80,9 @@ export default function LoginPage() {
             </div>
           )}
 
+          <LettsSsoButton intent="login" variant="light" />
+          <LettsSsoDivider variant="light" />
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Email
@@ -120,5 +131,19 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 px-4 text-slate-400 text-sm">
+          Loading…
+        </div>
+      }
+    >
+      <LoginPageInner />
+    </Suspense>
   );
 }

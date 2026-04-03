@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { createToken } from "@/lib/auth";
 import { verifyNotionCredentials } from "@/lib/notion";
 import { verifyGithubCredentials } from "@/lib/github";
 import { verifyWebhookCredentials } from "@/lib/webhook";
+import {
+  COOKIE_SETUP,
+  clearLettsSetupAssertionCookie,
+  verifyLettsSetupAssertion,
+} from "@/lib/letts-auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,11 +28,41 @@ export async function POST(request: NextRequest) {
       webhookToken,
     } = await request.json();
 
-    if (!tenantName || !adminEmail || !adminPassword) {
+    const cookieStore = await cookies();
+    const lettsAssertion = await verifyLettsSetupAssertion(
+      cookieStore.get(COOKIE_SETUP)?.value,
+    );
+
+    const trimmedPassword = (adminPassword ?? "").trim();
+    const hasPassword = trimmedPassword.length >= 8;
+
+    if (!tenantName?.trim() || !adminEmail?.trim()) {
       return NextResponse.json(
-        { error: "Tenant name, admin email, and password are required" },
-        { status: 400 }
+        { error: "Tenant name and admin email are required" },
+        { status: 400 },
       );
+    }
+
+    if (!hasPassword && !lettsAssertion) {
+      return NextResponse.json(
+        {
+          error:
+            "Choose a password (8+ characters) or sign up with LettsGroup first.",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (lettsAssertion) {
+      if (
+        adminEmail.trim().toLowerCase() !==
+        lettsAssertion.email.toLowerCase()
+      ) {
+        return NextResponse.json(
+          { error: "Email must match your LettsGroup account" },
+          { status: 400 },
+        );
+      }
     }
 
     const nKey = notionApiKey?.trim() || "";
@@ -114,16 +150,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const hashedPassword = await bcrypt.hash(adminPassword, 12);
+    const hashedPassword = hasPassword
+      ? await bcrypt.hash(trimmedPassword, 12)
+      : null;
 
     const tenant = await prisma.tenant.create({
       data: {
         name: tenantName,
         admins: {
           create: {
-            email: adminEmail,
+            email: adminEmail.trim(),
             password: hashedPassword,
-            name: adminName || null,
+            lettsSub: lettsAssertion?.sub ?? null,
+            name: adminName?.trim() || lettsAssertion?.name || null,
             role: "owner",
           },
         },
@@ -169,6 +208,8 @@ export async function POST(request: NextRequest) {
       maxAge: 60 * 60 * 24 * 7,
       path: "/",
     });
+
+    clearLettsSetupAssertionCookie(response);
 
     return response;
   } catch (error) {

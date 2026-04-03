@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { LettsSsoButton, LettsSsoDivider } from "@/components/letts-sso-button";
 
 export default function SetupPage() {
   const router = useRouter();
+  const [lettsSsoReady, setLettsSsoReady] = useState(false);
   const [form, setForm] = useState({
     tenantName: "",
     domain: "",
@@ -22,6 +24,28 @@ export default function SetupPage() {
   const [loading, setLoading] = useState(false);
   const [siteKey, setSiteKey] = useState("");
   const [siteId, setSiteId] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/letts/pending");
+        const data = await res.json();
+        if (cancelled || !data.profile) return;
+        setLettsSsoReady(true);
+        setForm((f) => ({
+          ...f,
+          adminEmail: data.profile.email,
+          adminName: (f.adminName || data.profile.name || "").trim(),
+        }));
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function update(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -105,6 +129,14 @@ export default function SetupPage() {
             <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg border border-red-100">{error}</div>
           )}
 
+          <LettsSsoButton intent="setup" variant="light" />
+          <LettsSsoDivider variant="light" />
+          {lettsSsoReady && (
+            <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
+              LettsGroup sign-in verified — you can create your site without a password, or add a password to sign in both ways.
+            </p>
+          )}
+
           <fieldset className="space-y-4">
             <legend className="text-sm font-semibold text-gray-900 mb-2">Your Site</legend>
             <div>
@@ -147,9 +179,15 @@ export default function SetupPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Password {lettsSsoReady ? "(optional)" : "*"}
+              </label>
               <input
-                type="password" value={form.adminPassword} onChange={(e) => update("adminPassword", e.target.value)} required minLength={8}
+                type="password"
+                value={form.adminPassword}
+                onChange={(e) => update("adminPassword", e.target.value)}
+                required={!lettsSsoReady}
+                minLength={lettsSsoReady ? 0 : 8}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900"
                 placeholder="••••••••"
               />

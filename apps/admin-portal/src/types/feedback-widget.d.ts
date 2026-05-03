@@ -1,12 +1,12 @@
 /// <reference types="react" />
 
 /**
- * Type declarations for the <feedback-widget> Web Component (script-tag usage).
+ * JSX types for <feedback-widget> in Next.js / React apps.
  *
- * If you installed via npm, you don't need this file — types ship with the package.
+ * Ensure this file is part of compilation (e.g. tsconfig "include":
+ * "src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts" — or list this path explicitly).
  *
- * For script-tag usage, copy this file into your project and add it to tsconfig.json:
- *   "include": ["types/feedback-widget.d.ts", ...]
+ * Copy into your admin-portal repo if it lives outside this monorepo.
  */
 
 export type FeedbackWidgetPosition =
@@ -27,18 +27,13 @@ export interface FeedbackWidgetAttributes {
   "page-id"?: string;
   "user-id"?: string;
   "user-name"?: string;
-  /** JSON-encoded string of arbitrary metadata. */
   metadata?: string;
-  /** Hex colour for the button and accent elements. Default: "#6366f1". */
   "theme-color"?: string;
-  /** When present, hides the floating trigger button. Use `.open()` to show the modal programmatically. */
   "hide-trigger"?: string | boolean;
 }
 
 export interface FeedbackWidgetElement extends HTMLElement {
-  /** Open the feedback modal. */
   open(): void;
-  /** Close the feedback modal. */
   close(): void;
 }
 

@@ -92,7 +92,8 @@ model Feedback {
   sourceDomain   String?
   status         String   @default("New")
   notionPageId   String?
-  githubIssueUrl String?
+  githubIssueUrl    String?
+  githubIssueNumber Int?
   createdAt      DateTime @default(now())
 
   @@index([siteId, status])

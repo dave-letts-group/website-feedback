@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { verifyApiKey, extractApiKey } from "@/lib/apiKey";
+import { syncStatusToGithub } from "@/lib/github";
 
 const VALID_STATUSES = ["New", "Pending", "In Progress", "Closed"];
 
@@ -83,6 +84,10 @@ export async function PATCH(
     if (result.count === 0) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+
+    // Fire-and-forget: sync status to GitHub
+    syncStatusToGithub(id, body.status);
+
     return NextResponse.json({ success: true });
   }
 
@@ -115,6 +120,10 @@ export async function PATCH(
     if (result.count === 0) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+
+    // Fire-and-forget: sync status to GitHub
+    syncStatusToGithub(id, body.status);
+
     return NextResponse.json({ success: true });
   }
 

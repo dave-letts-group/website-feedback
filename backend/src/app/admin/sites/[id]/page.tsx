@@ -38,6 +38,10 @@ export default function SiteDetailPage() {
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
 
+  // Widget footer (attribute-driven — baked into the embed snippet, not stored server-side)
+  const [footerText, setFooterText] = useState("");
+  const [footerLink, setFooterLink] = useState("");
+
   // Notion state
   const [notionEditing, setNotionEditing] = useState(false);
   const [notionApiKey, setNotionApiKey] = useState("");
@@ -443,8 +447,18 @@ export default function SiteDetailPage() {
   }
 
   const backendUrl = typeof window !== "undefined" ? window.location.origin : "";
+
+  // Quotes inside attribute values would break the generated snippet — normalise them.
+  const sanitizeAttr = (v: string) => v.trim().replace(/"/g, "&quot;");
+  const footerAttrLines = [
+    footerText.trim() && `  footer-text="${sanitizeAttr(footerText)}"`,
+    footerLink.trim() && `  footer-link="${sanitizeAttr(footerLink)}"`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
   const embedCode = site
-    ? `<script src="${backendUrl}/widget.js"><\/script>\n<feedback-widget\n  site-key="${site.siteKey}"\n  api-url="${backendUrl}"\n  position="bottom-right"\n></feedback-widget>`
+    ? `<script src="${backendUrl}/widget.js"><\/script>\n<feedback-widget\n  site-key="${site.siteKey}"\n  api-url="${backendUrl}"\n  position="bottom-right"${footerAttrLines ? "\n" + footerAttrLines : ""}\n></feedback-widget>`
     : "";
 
   const notionConnected = site?.notionApiKey && site.notionApiKey !== "null" && site?.notionDbId;
@@ -563,6 +577,47 @@ export default function SiteDetailPage() {
             >
               {copiedKey ? "Copied" : "Copy"}
             </button>
+          </div>
+        </div>
+
+        {/* Widget Footer Link */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Widget Footer Link</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Add a faint divider with a line of text and a link below the submit button — handy for
+            linking to a support page, roadmap, or terms. Fill these in and the values are baked into
+            the embed snippet below. They are configured per embed (not stored on the server), so you
+            can also set <code className="bg-gray-100 px-1 py-0.5 rounded text-xs">footer-text</code>{" "}
+            and <code className="bg-gray-100 px-1 py-0.5 rounded text-xs">footer-link</code> directly
+            on the element.
+          </p>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Footer text</label>
+              <input
+                type="text"
+                value={footerText}
+                onChange={(e) => setFooterText(e.target.value)}
+                placeholder="Looking for more help?"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Shown below the submit button. Becomes the clickable link text when a destination is set.
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Destination link</label>
+              <input
+                type="url"
+                value={footerLink}
+                onChange={(e) => setFooterLink(e.target.value)}
+                placeholder="https://example.com/support"
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition text-gray-900"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Opens in a new tab. Only http(s), mailto, tel, and relative URLs are rendered.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -1022,6 +1077,8 @@ export default function SiteDetailPage() {
                 ["position", "Button position: bottom-right (default), bottom-left, bottom-center, top-right, top-left, top-center, middle-right, middle-left"],
                 ["theme-color", "Primary colour hex code (default: #6366f1)"],
                 ["hide-trigger", "Hide the floating button. Use widget.open() from your own UI instead."],
+                ["footer-text", "Text shown below the submit button. Becomes the link label when footer-link is set."],
+                ["footer-link", "Destination URL for the footer link (http(s), mailto, tel, or relative). Opens in a new tab."],
               ].map(([attr, desc]) => (
                 <tr key={attr}>
                   <td className="py-2.5 pr-4 align-top">
@@ -1114,6 +1171,8 @@ export default function SiteDetailPage() {
   user-name="Jane Smith"
   metadata='{"plan":"pro","version":"2.4.1"}'
   theme-color="#6366f1"
+  footer-text="Looking for more help?"
+  footer-link="https://example.com/support"
 ></feedback-widget>`}</pre>
 
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-6 mb-3">Heavy SPA / Dashboard</h3>
@@ -1135,6 +1194,59 @@ export default function SiteDetailPage() {
   api-url="${backendUrl}"
   capture-enabled="false"
 ></feedback-widget>`}</pre>
+        </div>
+
+        {/* Styling the Footer */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Styling the Footer (CSS Parts)</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            The widget renders inside a Shadow DOM, so your site&apos;s CSS can&apos;t reach its
+            internals directly. The footer divider, text, and link are exposed as{" "}
+            <code className="bg-gray-100 px-1 py-0.5 rounded text-xs">::part()</code> hooks, so you can
+            restyle them from your host application&apos;s global stylesheet:
+          </p>
+          <table className="w-full text-sm mb-4">
+            <thead>
+              <tr className="text-left border-b border-gray-100">
+                <th className="pb-2 font-medium text-gray-500">Part</th>
+                <th className="pb-2 font-medium text-gray-500">Element</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {[
+                ["footer", "Wrapper around the divider and text"],
+                ["footer-divider", "The faint divider line"],
+                ["footer-text", "The text paragraph below the divider"],
+                ["footer-link", "The anchor element (only when footer-link is set)"],
+              ].map(([part, desc]) => (
+                <tr key={part}>
+                  <td className="py-2.5 pr-4 align-top">
+                    <code className="bg-gray-50 px-1.5 py-0.5 rounded text-xs font-mono text-indigo-600 whitespace-nowrap">{part}</code>
+                  </td>
+                  <td className="py-2.5 text-gray-600">{desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <pre className="bg-gray-900 text-gray-100 rounded-xl p-5 text-sm overflow-x-auto font-mono leading-relaxed select-all">{`/* In your host application's stylesheet */
+feedback-widget::part(footer-divider) {
+  background: #e2e8f0;       /* faint divider colour */
+}
+
+feedback-widget::part(footer-text) {
+  color: #64748b;
+  font-size: 13px;
+}
+
+feedback-widget::part(footer-link) {
+  color: #e11d48;
+  font-weight: 600;
+  text-decoration: underline;
+}`}</pre>
+          <p className="text-xs text-gray-400 mt-3">
+            Target the element by tag (<code className="bg-gray-100 px-1 py-0.5 rounded">feedback-widget</code>)
+            or any selector that matches it. Part rules from your page override the widget&apos;s defaults.
+          </p>
         </div>
 
         {/* Dynamic / SPA Usage */}

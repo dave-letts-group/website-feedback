@@ -27,6 +27,28 @@ function loadHtml2Canvas(): Promise<Html2CanvasFn> {
 }
 
 // ---------------------------------------------------------------------------
+// Small HTML helpers
+// ---------------------------------------------------------------------------
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function escapeAttr(value: string): string {
+  return escapeHtml(value).replace(/"/g, "&quot;");
+}
+
+/** Allow only safe link schemes; reject javascript:/data: etc. */
+function safeHref(value: string): string | null {
+  const trimmed = value.trim();
+  if (/^(https?:|mailto:|tel:|\/|#|\.)/i.test(trimmed)) return trimmed;
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -54,6 +76,10 @@ export interface FeedbackWidgetAttributes {
   metadata?: string;
   "theme-color"?: string;
   "hide-trigger"?: string | boolean;
+  /** Text shown below the submit button. Rendered as a link when `footer-link` is set. */
+  "footer-text"?: string;
+  /** Destination URL for the footer link. Falls back to the URL as label if `footer-text` is omitted. */
+  "footer-link"?: string;
   "capture-enabled"?: string | boolean;
   "capture-target"?: CaptureTarget;
   "capture-scale"?: string | number;
@@ -114,6 +140,8 @@ export class FeedbackWidget extends HTMLElement {
       "metadata",
       "theme-color",
       "hide-trigger",
+      "footer-text",
+      "footer-link",
       "capture-enabled",
       "capture-target",
       "capture-scale",
@@ -505,6 +533,20 @@ export class FeedbackWidget extends HTMLElement {
         .submit-btn:hover { background: ${cd}; }
         .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
+        /* Footer (divider + text/link below the submit button).
+           Host pages can override via ::part(footer-divider | footer-text | footer-link). */
+        .fw-footer { margin-top: 16px; }
+        .fw-footer-divider {
+          height: 1px; border: 0; background: #ededf0; margin: 0 0 12px;
+        }
+        .fw-footer-text {
+          text-align: center; font-size: 12px; line-height: 1.5; color: #9ca3af;
+        }
+        .fw-footer-link {
+          color: ${c}; font-weight: 600; text-decoration: none;
+        }
+        .fw-footer-link:hover { text-decoration: underline; }
+
         .success-view {
           padding: 40px 24px; text-align: center;
         }
@@ -586,6 +628,7 @@ export class FeedbackWidget extends HTMLElement {
                 <button class="submit-btn" id="fw-submit" ${this._submitting ? "disabled" : ""}>
                   ${this._submitting ? "Sending..." : "Submit Feedback"}
                 </button>
+                ${this._footerHTML()}
               </div>
               <div class="powered">Powered by WebFeedback</div>
             `
@@ -598,6 +641,24 @@ export class FeedbackWidget extends HTMLElement {
     `;
 
     this._bindEvents();
+  }
+
+  private _footerHTML(): string {
+    const text = (this.getAttribute("footer-text") || "").trim();
+    const rawLink = (this.getAttribute("footer-link") || "").trim();
+    const href = rawLink ? safeHref(rawLink) : null;
+    if (!text && !href) return "";
+
+    const label = text || rawLink;
+    const content = href
+      ? `<a part="footer-link" class="fw-footer-link" href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`
+      : escapeHtml(label);
+
+    return `
+      <div part="footer" class="fw-footer">
+        <div part="footer-divider" class="fw-footer-divider"></div>
+        <p part="footer-text" class="fw-footer-text">${content}</p>
+      </div>`;
   }
 
   private _screenshotSlotHTML(): string {

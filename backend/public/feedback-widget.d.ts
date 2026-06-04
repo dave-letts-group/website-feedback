@@ -33,6 +33,10 @@ export interface FeedbackWidgetAttributes {
   "theme-color"?: string;
   /** When present, hides the floating trigger button. Use `.open()` to show the modal programmatically. */
   "hide-trigger"?: string | boolean;
+  /** Text shown below the submit button. Rendered as a link when `footer-link` is set. */
+  "footer-text"?: string;
+  /** Destination URL for the footer link. Falls back to the URL as label if `footer-text` is omitted. */
+  "footer-link"?: string;
 }
 
 export interface FeedbackWidgetElement extends HTMLElement {

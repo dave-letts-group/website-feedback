@@ -44,19 +44,19 @@ After setup you'll have:
 #### Option A: npm (recommended for React / Next.js / bundled apps)
 
 ```bash
-npm install @webfeedback/widget
+npm install @surfkitchen/webfeedback
 ```
 
 Then import it once (the import registers the `<feedback-widget>` custom element as a side effect):
 
 ```ts
-import "@webfeedback/widget";
+import "@surfkitchen/webfeedback";
 ```
 
 For React/JSX TypeScript support, also import the type augmentation:
 
 ```ts
-import "@webfeedback/widget/react";
+import "@surfkitchen/webfeedback/react";
 ```
 
 Then use the element in your HTML or JSX:
@@ -86,22 +86,51 @@ Either way, a floating feedback button will appear in the bottom-right corner.
 
 ### Attributes
 
-| Attribute      | Required | Description                                                              |
-|----------------|----------|--------------------------------------------------------------------------|
-| `site-key`     | Yes      | Your site's API key                                                      |
-| `api-url`      | Yes      | WebFeedback backend URL                                                  |
-| `position`     | No       | Button position. Default: `bottom-right`                                 |
-| `user-id`      | No       | Logged-in user's ID (attached to submissions)                            |
-| `user-name`    | No       | Logged-in user's display name                                            |
-| `page-title`   | No       | Override page title (falls back to `document.title`)                     |
-| `page-id`      | No       | Custom page identifier for your own tracking                             |
-| `metadata`     | No       | JSON string of arbitrary data (e.g. `'{"plan":"pro"}'`)                  |
-| `theme-color`  | No       | Hex colour for the button and accents. Default: `#6366f1`                |
-| `hide-trigger` | No       | Hide the floating button (use `.open()` to trigger programmatically)     |
+
+| Attribute      | Required | Description                                                          |
+| -------------- | -------- | -------------------------------------------------------------------- |
+| `site-key`     | Yes      | Your site's API key                                                  |
+| `api-url`      | Yes      | WebFeedback backend URL                                              |
+| `position`     | No       | Button position. Default: `bottom-right`                             |
+| `user-id`      | No       | Logged-in user's ID (attached to submissions)                        |
+| `user-name`    | No       | Logged-in user's display name                                        |
+| `page-title`   | No       | Override page title (falls back to `document.title`)                 |
+| `page-id`      | No       | Custom page identifier for your own tracking                         |
+| `metadata`     | No       | JSON string of arbitrary data (e.g. `'{"plan":"pro"}'`)              |
+| `theme-color`  | No       | Hex colour for the button and accents. Default: `#6366f1`            |
+| `hide-trigger` | No       | Hide the floating button (use `.open()` to trigger programmatically) |
+| `footer-text`  | No       | Text shown below the submit button (becomes the link label when `footer-link` is set) |
+| `footer-link`  | No       | Destination URL for the footer link (http(s), mailto, tel, or relative). Opens in a new tab |
+
 
 ### Position Options
 
 `bottom-right` (default), `bottom-left`, `bottom-center`, `top-right`, `top-left`, `top-center`, `middle-right`, `middle-left`
+
+### Footer Link
+
+Show a faint divider with a line of text and a link below the submit button — useful for linking to a support page, roadmap, or terms:
+
+```html
+<feedback-widget
+  site-key="YOUR_SITE_KEY"
+  api-url="https://YOUR_API_URL"
+  footer-text="Looking for more help?"
+  footer-link="https://example.com/support"
+></feedback-widget>
+```
+
+### Styling (CSS Parts)
+
+The widget renders inside a Shadow DOM. The footer divider, text, and link are exposed as `::part()` hooks, so the host application can restyle them from its own stylesheet:
+
+```css
+feedback-widget::part(footer-divider) { background: #e2e8f0; }
+feedback-widget::part(footer-text)    { color: #64748b; font-size: 13px; }
+feedback-widget::part(footer-link)    { color: #e11d48; text-decoration: underline; }
+```
+
+Available parts: `footer` (wrapper), `footer-divider`, `footer-text`, `footer-link`.
 
 ### Programmatic Control
 
@@ -131,13 +160,13 @@ The npm package ships with full TypeScript declarations out of the box:
 
 - **DOM types** -- `document.querySelector('feedback-widget')` returns a typed `FeedbackWidget` with `open()` and `close()` methods
 - **Attribute types** -- all widget attributes are typed, including position literals
-- **React JSX** -- opt-in via `import "@webfeedback/widget/react"`
+- **React JSX** -- opt-in via `import "@surfkitchen/webfeedback/react"`
 
 ### npm install (types included automatically)
 
 ```ts
-import "@webfeedback/widget";                // registers the custom element + DOM types
-import "@webfeedback/widget/react";          // adds <feedback-widget> to React JSX (optional)
+import "@surfkitchen/webfeedback";           // registers the custom element + DOM types
+import "@surfkitchen/webfeedback/react";     // adds <feedback-widget> to React JSX (optional)
 
 const widget = document.querySelector("feedback-widget");
 widget?.open();   // typed -- no cast needed
@@ -175,14 +204,14 @@ See the full step-by-step guide: **[docs/INTEGRATE_ANGULAR.md](docs/INTEGRATE_AN
 **Quick version:**
 
 ```bash
-npm install @webfeedback/widget
+npm install @surfkitchen/webfeedback
 ```
 
 ```tsx
 // components/feedback-widget.tsx
 "use client";
-import "@webfeedback/widget";
-import "@webfeedback/widget/react";
+import "@surfkitchen/webfeedback";
+import "@surfkitchen/webfeedback/react";
 
 interface FeedbackWidgetProps {
   siteKey: string;
@@ -231,14 +260,16 @@ Now click the extension icon on any page to submit feedback.
 
 Access at `/admin` after signing in.
 
+
 | Section             | Description                                                  |
-|---------------------|--------------------------------------------------------------|
+| ------------------- | ------------------------------------------------------------ |
 | **Dashboard**       | Stats overview, recent feedback, charts                      |
 | **Feedback**        | Searchable, filterable list with status management           |
 | **Feedback Detail** | Full view with screenshot, metadata, user info, page context |
 | **Sites**           | Manage multiple sites, each with its own API key             |
 | **Team**            | Invite team members with role-based access                   |
 | **Settings**        | Site key, embed code, GitHub and Notion integrations         |
+
 
 ### Feedback Statuses
 
@@ -252,25 +283,29 @@ Access at `/admin` after signing in.
 
 ### Public
 
-| Method | Endpoint          | Headers                          | Description        |
-|--------|-------------------|----------------------------------|--------------------|
-| POST   | `/api/feedback`   | `X-Site-Key: YOUR_SITE_KEY`      | Submit feedback    |
+
+| Method | Endpoint        | Headers                     | Description     |
+| ------ | --------------- | --------------------------- | --------------- |
+| POST   | `/api/feedback` | `X-Site-Key: YOUR_SITE_KEY` | Submit feedback |
+
 
 ### Admin (authenticated via httpOnly cookie)
 
-| Method | Endpoint               | Description                                    |
-|--------|------------------------|------------------------------------------------|
-| GET    | `/api/feedback`        | List feedback (supports `status`, `category`, `search`, `page`, `limit`) |
-| GET    | `/api/feedback/:id`    | Get feedback detail                            |
-| PATCH  | `/api/feedback/:id`    | Update status                                  |
-| POST   | `/api/auth/login`      | Sign in                                        |
-| POST   | `/api/auth/logout`     | Sign out                                       |
-| POST   | `/api/setup`           | Create tenant + first admin                    |
-| GET    | `/api/tenants/me`      | Current tenant info                            |
-| GET    | `/api/sites`           | List sites                                     |
-| POST   | `/api/sites`           | Create site                                    |
-| GET    | `/api/team`            | List team members                              |
-| POST   | `/api/team/invites`    | Send invite                                    |
+
+| Method | Endpoint            | Description                                                              |
+| ------ | ------------------- | ------------------------------------------------------------------------ |
+| GET    | `/api/feedback`     | List feedback (supports `status`, `category`, `search`, `page`, `limit`) |
+| GET    | `/api/feedback/:id` | Get feedback detail                                                      |
+| PATCH  | `/api/feedback/:id` | Update status                                                            |
+| POST   | `/api/auth/login`   | Sign in                                                                  |
+| POST   | `/api/auth/logout`  | Sign out                                                                 |
+| POST   | `/api/setup`        | Create tenant + first admin                                              |
+| GET    | `/api/tenants/me`   | Current tenant info                                                      |
+| GET    | `/api/sites`        | List sites                                                               |
+| POST   | `/api/sites`        | Create site                                                              |
+| GET    | `/api/team`         | List team members                                                        |
+| POST   | `/api/team/invites` | Send invite                                                              |
+
 
 ## Development
 
@@ -309,25 +344,29 @@ Open `demo/index.html` in a browser to see the widget in action. Update the `sit
 3. Set **Root Directory** to `backend`
 4. Add environment variables:
 
-| Variable                | Value                                     |
-|-------------------------|-------------------------------------------|
-| `DATABASE_URL`          | Your PostgreSQL connection string          |
-| `JWT_SECRET`            | A strong random string (32+ chars)         |
-| `NEXT_PUBLIC_APP_URL`   | Your deployment URL                        |
 
-5. Deploy
+| Variable              | Value                              |
+| --------------------- | ---------------------------------- |
+| `DATABASE_URL`        | Your PostgreSQL connection string  |
+| `JWT_SECRET`          | A strong random string (32+ chars) |
+| `NEXT_PUBLIC_APP_URL` | Your deployment URL                |
+
+
+1. Deploy
 
 ## Tech Stack
 
-| Layer               | Technology                                              |
-|---------------------|---------------------------------------------------------|
-| Widget              | TypeScript, Web Components, Shadow DOM, html2canvas-pro, tsup |
-| Chrome Extension    | Manifest V3, `captureVisibleTab` API                    |
-| Backend             | Next.js 16, TypeScript, Prisma ORM 7                    |
-| Database            | PostgreSQL                                              |
-| Auth                | JWT (jose) with httpOnly cookies                        |
-| Styling             | Tailwind CSS v4                                         |
-| Deployment          | Vercel / Docker Compose                                 |
+
+| Layer            | Technology                                                    |
+| ---------------- | ------------------------------------------------------------- |
+| Widget           | TypeScript, Web Components, Shadow DOM, html2canvas-pro, tsup |
+| Chrome Extension | Manifest V3, `captureVisibleTab` API                          |
+| Backend          | Next.js 16, TypeScript, Prisma ORM 7                          |
+| Database         | PostgreSQL                                                    |
+| Auth             | JWT (jose) with httpOnly cookies                              |
+| Styling          | Tailwind CSS v4                                               |
+| Deployment       | Vercel / Docker Compose                                       |
+
 
 ## License
 

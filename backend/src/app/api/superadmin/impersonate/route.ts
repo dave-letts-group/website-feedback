@@ -18,7 +18,13 @@ export async function POST(request: NextRequest) {
 
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
-    include: { sites: { take: 1, orderBy: { createdAt: "asc" } } },
+    include: {
+      sites: {
+        take: 1,
+        orderBy: { createdAt: "asc" },
+        select: { id: true },
+      },
+    },
   });
 
   if (!tenant) {

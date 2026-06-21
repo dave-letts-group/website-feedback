@@ -22,6 +22,7 @@ export async function GET(
   // Verify site belongs to this tenant
   const site = await prisma.site.findFirst({
     where: { id: siteId, tenantId: session.tenantId },
+    select: { id: true },
   });
 
   if (!site) {
@@ -66,6 +67,7 @@ export async function DELETE(
   // Verify site belongs to this tenant
   const site = await prisma.site.findFirst({
     where: { id: siteId, tenantId: session.tenantId },
+    select: { id: true },
   });
 
   if (!site) {
@@ -108,6 +110,7 @@ export async function POST(
   // Verify site belongs to this tenant
   const site = await prisma.site.findFirst({
     where: { id: siteId, tenantId: session.tenantId },
+    select: { id: true },
   });
 
   if (!site) {

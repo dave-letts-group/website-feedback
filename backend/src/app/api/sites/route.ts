@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { getSession, requireRole } from "@/lib/auth";
 import { verifyApiKey, extractApiKey } from "@/lib/apiKey";
@@ -10,7 +11,12 @@ export async function GET(request: NextRequest) {
     const sites = await prisma.site.findMany({
       where: { tenantId: session.tenantId },
       orderBy: { createdAt: "desc" },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        domain: true,
+        siteKey: true,
+        createdAt: true,
         _count: { select: { feedback: true } },
       },
     });
@@ -41,7 +47,12 @@ export async function GET(request: NextRequest) {
     // API key is scoped to a specific site
     const site = await prisma.site.findFirst({
       where: { id: verified.siteId, tenantId: verified.tenantId },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        domain: true,
+        siteKey: true,
+        createdAt: true,
         _count: { select: { feedback: true } },
       },
     });
@@ -125,7 +136,7 @@ export async function POST(request: NextRequest) {
           siteId: site.id,
           tenantId,
           name: `${site.name} - Default Key`,
-          key: require("crypto").randomBytes(32).toString("hex"),
+          key: randomBytes(32).toString("hex"),
           permissions: ["feedback:read", "feedback:write", "sites:read"],
         },
         select: {

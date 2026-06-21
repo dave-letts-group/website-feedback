@@ -16,7 +16,14 @@ export async function POST(
   }
 
   const { id } = await params;
-  const site = await prisma.site.findUnique({ where: { id } });
+  const site = await prisma.site.findUnique({
+    where: { id },
+    select: {
+      tenantId: true,
+      webhookUrl: true,
+      webhookToken: true,
+    },
+  });
   if (!site || site.tenantId !== session.tenantId) {
     return NextResponse.json({ error: "Site not found" }, { status: 404 });
   }

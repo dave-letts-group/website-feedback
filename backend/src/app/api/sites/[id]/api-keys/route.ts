@@ -19,6 +19,7 @@ export async function GET(
 
   const site = await prisma.site.findFirst({
     where: { id: siteId, tenantId: session.tenantId },
+    select: { id: true },
   });
   if (!site)
     return NextResponse.json({ error: "Site not found" }, { status: 404 });
@@ -54,6 +55,7 @@ export async function POST(
 
   const site = await prisma.site.findFirst({
     where: { id: siteId, tenantId: session.tenantId },
+    select: { id: true },
   });
   if (!site)
     return NextResponse.json({ error: "Site not found" }, { status: 404 });

@@ -72,7 +72,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const site = await prisma.site.findUnique({ where: { siteKey } });
+    const site = await prisma.site.findUnique({
+      where: { siteKey },
+      select: {
+        id: true,
+        tenantId: true,
+        name: true,
+        domain: true,
+      },
+    });
     if (!site) {
       return NextResponse.json(
         { error: "Invalid site key" },

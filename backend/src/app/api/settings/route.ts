@@ -24,7 +24,16 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const site = await prisma.site.findUnique({ where: { id: siteId } });
+    const site = await prisma.site.findUnique({
+      where: { id: siteId },
+      select: {
+        tenantId: true,
+        notionApiKey: true,
+        notionDbId: true,
+        githubToken: true,
+        githubRepo: true,
+      },
+    });
     if (!site || (!session.isSuperAdmin && site.tenantId !== session.tenantId)) {
       return NextResponse.json(
         { error: "Site not found" },
@@ -32,39 +41,79 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    if (notionApiKey && notionDbId) {
-      const check = await verifyNotionCredentials(notionApiKey, notionDbId);
-      if (!check.valid) {
+    const notionChanging = "notionApiKey" in body || "notionDbId" in body;
+    const nextNotionApiKey =
+      "notionApiKey" in body ? notionApiKey?.trim() || null : site.notionApiKey;
+    const nextNotionDbId =
+      "notionDbId" in body ? notionDbId?.trim() || null : site.notionDbId;
+
+    if (notionChanging) {
+      if (nextNotionApiKey && !nextNotionDbId) {
         return NextResponse.json(
-          { error: `Notion: ${check.error}`, notionError: true },
-          { status: 400 }
+          { error: "Notion database ID is required when setting an API key" },
+          { status: 400 },
         );
+      }
+      if (!nextNotionApiKey && nextNotionDbId) {
+        return NextResponse.json(
+          { error: "Notion API key is required when setting a database ID" },
+          { status: 400 },
+        );
+      }
+      if (nextNotionApiKey && nextNotionDbId) {
+        const check = await verifyNotionCredentials(nextNotionApiKey, nextNotionDbId);
+        if (!check.valid) {
+          return NextResponse.json(
+            { error: `Notion: ${check.error}`, notionError: true },
+            { status: 400 },
+          );
+        }
       }
     }
 
-    if (githubToken && githubRepo) {
-      const check = await verifyGithubCredentials(githubToken, githubRepo);
-      if (!check.valid) {
+    const githubChanging = "githubToken" in body || "githubRepo" in body;
+    const nextGithubToken =
+      "githubToken" in body ? githubToken?.trim() || null : site.githubToken;
+    const nextGithubRepo =
+      "githubRepo" in body ? githubRepo?.trim() || null : site.githubRepo;
+
+    if (githubChanging) {
+      if (nextGithubToken && !nextGithubRepo) {
         return NextResponse.json(
-          { error: `GitHub: ${check.error}`, githubError: true },
-          { status: 400 }
+          { error: "GitHub repository is required when setting a token" },
+          { status: 400 },
         );
+      }
+      if (!nextGithubToken && nextGithubRepo) {
+        return NextResponse.json(
+          { error: "GitHub token is required when setting a repository" },
+          { status: 400 },
+        );
+      }
+      if (nextGithubToken && nextGithubRepo) {
+        const check = await verifyGithubCredentials(nextGithubToken, nextGithubRepo);
+        if (!check.valid) {
+          return NextResponse.json(
+            { error: `GitHub: ${check.error}`, githubError: true },
+            { status: 400 },
+          );
+        }
       }
     }
 
     const data: Record<string, string | null> = {};
 
     if ("notionApiKey" in body) {
-      data.notionApiKey = notionApiKey || null;
+      data.notionApiKey = nextNotionApiKey;
     }
     if ("notionDbId" in body) {
-      data.notionDbId = notionDbId || null;
+      data.notionDbId = nextNotionDbId;
     }
     if ("githubToken" in body) {
-      data.githubToken = githubToken || null;
+      data.githubToken = nextGithubToken;
     }
     if ("githubRepo" in body) {
-      data.githubRepo = githubRepo || null;
+      data.githubRepo = nextGithubRepo;
     }
 
     await prisma.site.update({

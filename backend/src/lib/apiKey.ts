@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { prisma } from "./db";
 
 export interface ApiKeyPayload {
@@ -23,7 +24,6 @@ export async function verifyApiKey(
 
   const apiKey = await prisma.apiKey.findUnique({
     where: { key: normalizedKey },
-    include: { site: true },
   });
 
   if (!apiKey) {
@@ -31,7 +31,6 @@ export async function verifyApiKey(
     // Fallback search in case it was stored differently (though it shouldn't be)
     const fallbackKey = await prisma.apiKey.findFirst({
       where: { key: { equals: normalizedKey, mode: 'insensitive' } },
-      include: { site: true },
     });
 
     if (!fallbackKey) {
@@ -127,8 +126,7 @@ export function extractApiKey(request: Request): string | null {
  * @returns A 64-character hex string
  */
 export function generateApiKey(): string {
-  const crypto = require("crypto");
-  return crypto.randomBytes(32).toString("hex");
+  return randomBytes(32).toString("hex");
 }
 
 /**

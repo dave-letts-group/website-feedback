@@ -8,14 +8,14 @@ interface SiteData {
   name: string;
   domain: string | null;
   siteKey: string;
-  notionApiKey: string | null;
+  hasNotionApiKey: boolean;
   notionDbId: string | null;
   notionEnabled: boolean;
-  githubToken: string | null;
+  hasGithubToken: boolean;
   githubRepo: string | null;
   githubEnabled: boolean;
   webhookUrl: string | null;
-  webhookToken: string | null;
+  hasWebhookToken: boolean;
   webhookEnabled: boolean;
   createdAt: string;
 }
@@ -144,7 +144,7 @@ export default function SiteDetailPage() {
       setError("Database ID is required when setting an API key");
       return;
     }
-    const hasExistingKey = site?.notionApiKey && site.notionApiKey !== "null";
+    const hasExistingKey = site?.hasNotionApiKey;
     if (notionDbId && !notionApiKey && !hasExistingKey) {
       setError("API key is required when setting a database ID");
       return;
@@ -232,7 +232,7 @@ export default function SiteDetailPage() {
       setError("Repository is required when setting a token");
       return;
     }
-    const hasExistingToken = site?.githubToken && site.githubToken !== "null";
+    const hasExistingToken = site?.hasGithubToken;
     if (githubRepo && !githubToken && !hasExistingToken) {
       setError("Token is required when setting a repository");
       return;
@@ -320,7 +320,7 @@ export default function SiteDetailPage() {
       setError("Webhook callback URL is required when setting a bearer token");
       return;
     }
-    const hasExistingToken = site?.webhookToken && site.webhookToken !== "null";
+    const hasExistingToken = site?.hasWebhookToken;
     if (webhookUrl && !webhookToken && !hasExistingToken) {
       setError("Webhook bearer token is required when setting a callback URL");
       return;
@@ -461,9 +461,9 @@ export default function SiteDetailPage() {
     ? `<script src="${backendUrl}/widget.js"><\/script>\n<feedback-widget\n  site-key="${site.siteKey}"\n  api-url="${backendUrl}"\n  position="bottom-right"${footerAttrLines ? "\n" + footerAttrLines : ""}\n></feedback-widget>`
     : "";
 
-  const notionConnected = site?.notionApiKey && site.notionApiKey !== "null" && site?.notionDbId;
-  const githubConnected = site?.githubToken && site.githubToken !== "null" && site?.githubRepo;
-  const webhookConnected = site?.webhookToken && site.webhookToken !== "null" && site?.webhookUrl;
+  const notionConnected = site?.hasNotionApiKey && site?.notionDbId;
+  const githubConnected = site?.hasGithubToken && site?.githubRepo;
+  const webhookConnected = site?.hasWebhookToken && site?.webhookUrl;
 
   if (loading) {
     return (
@@ -668,7 +668,7 @@ export default function SiteDetailPage() {
                 <div className="flex items-center justify-between">
                   <dt className="text-gray-400 font-medium">API Key</dt>
                   <dd className="text-gray-700 font-mono text-xs">
-                    {site.notionApiKey && site.notionApiKey !== "null" ? site.notionApiKey : "Not set"}
+                    {site.hasNotionApiKey ? "••••••••••••••••" : "Not set"}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between">
@@ -797,7 +797,7 @@ export default function SiteDetailPage() {
                 <div className="flex items-center justify-between">
                   <dt className="text-gray-400 font-medium">Token</dt>
                   <dd className="text-gray-700 font-mono text-xs">
-                    {site.githubToken && site.githubToken !== "null" ? site.githubToken : "Not set"}
+                    {site.hasGithubToken ? "••••••••••••••••" : "Not set"}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between">
@@ -929,7 +929,7 @@ export default function SiteDetailPage() {
                 <div className="flex items-center justify-between">
                   <dt className="text-gray-400 font-medium">Bearer Token</dt>
                   <dd className="text-gray-700 font-mono text-xs">
-                    {site.webhookToken && site.webhookToken !== "null" ? site.webhookToken : "Not set"}
+                    {site.hasWebhookToken ? "••••••••••••••••" : "Not set"}
                   </dd>
                 </div>
               </dl>

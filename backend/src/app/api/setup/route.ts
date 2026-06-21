@@ -182,7 +182,10 @@ export async function POST(request: NextRequest) {
           },
         },
       },
-      include: { admins: true, sites: true },
+      include: {
+        admins: { select: { id: true } },
+        sites: { select: { id: true, siteKey: true } },
+      },
     });
 
     const admin = tenant.admins[0];

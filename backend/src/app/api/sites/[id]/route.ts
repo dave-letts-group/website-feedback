@@ -4,10 +4,7 @@ import { getSession, requireRole } from "@/lib/auth";
 import { verifyNotionCredentials } from "@/lib/notion";
 import { verifyGithubCredentials } from "@/lib/github";
 import { verifyWebhookCredentials } from "@/lib/webhook";
-
-function maskSecret(value: string | null): string | null {
-  return value ? "••••••••" : null;
-}
+import { adminSiteSelect, toAdminSitePayload } from "@/lib/site-public";
 
 export async function GET(
   _request: NextRequest,
@@ -19,18 +16,16 @@ export async function GET(
   }
 
   const { id } = await params;
-  const site = await prisma.site.findUnique({ where: { id } });
+  const site = await prisma.site.findUnique({
+    where: { id },
+    select: adminSiteSelect,
+  });
   if (!site || site.tenantId !== session.tenantId) {
     return NextResponse.json({ error: "Site not found" }, { status: 404 });
   }
 
   return NextResponse.json({
-    site: {
-      ...site,
-      notionApiKey: maskSecret(site.notionApiKey),
-      githubToken: maskSecret(site.githubToken),
-      webhookToken: maskSecret(site.webhookToken),
-    },
+    site: toAdminSitePayload(site),
   });
 }
 
@@ -47,7 +42,10 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const site = await prisma.site.findUnique({ where: { id } });
+  const site = await prisma.site.findUnique({
+    where: { id },
+    select: adminSiteSelect,
+  });
   if (!site || site.tenantId !== session.tenantId) {
     return NextResponse.json({ error: "Site not found" }, { status: 404 });
   }
@@ -69,23 +67,65 @@ export async function PATCH(
     } =
       body;
 
-    if (notionApiKey && notionDbId) {
-      const check = await verifyNotionCredentials(notionApiKey, notionDbId);
-      if (!check.valid) {
+    const notionDisconnect = notionApiKey === null || notionDbId === null;
+    const notionChanging = notionApiKey !== undefined || notionDbId !== undefined;
+    const nextNotionApiKey =
+      notionApiKey !== undefined ? notionApiKey?.trim() || null : site.notionApiKey;
+    const nextNotionDbId =
+      notionDbId !== undefined ? notionDbId?.trim() || null : site.notionDbId;
+
+    if (notionChanging && !notionDisconnect) {
+      if (nextNotionApiKey && !nextNotionDbId) {
         return NextResponse.json(
-          { error: `Notion: ${check.error}`, notionError: true },
+          { error: "Notion database ID is required when setting an API key" },
           { status: 400 },
         );
       }
-    }
-
-    if (githubToken && githubRepo) {
-      const check = await verifyGithubCredentials(githubToken, githubRepo);
-      if (!check.valid) {
+      if (!nextNotionApiKey && nextNotionDbId) {
         return NextResponse.json(
-          { error: `GitHub: ${check.error}`, githubError: true },
+          { error: "Notion API key is required when setting a database ID" },
           { status: 400 },
         );
+      }
+      if (nextNotionApiKey && nextNotionDbId) {
+        const check = await verifyNotionCredentials(nextNotionApiKey, nextNotionDbId);
+        if (!check.valid) {
+          return NextResponse.json(
+            { error: `Notion: ${check.error}`, notionError: true },
+            { status: 400 },
+          );
+        }
+      }
+    }
+
+    const githubDisconnect = githubToken === null || githubRepo === null;
+    const githubChanging = githubToken !== undefined || githubRepo !== undefined;
+    const nextGithubToken =
+      githubToken !== undefined ? githubToken?.trim() || null : site.githubToken;
+    const nextGithubRepo =
+      githubRepo !== undefined ? githubRepo?.trim() || null : site.githubRepo;
+
+    if (githubChanging && !githubDisconnect) {
+      if (nextGithubToken && !nextGithubRepo) {
+        return NextResponse.json(
+          { error: "GitHub repository is required when setting a token" },
+          { status: 400 },
+        );
+      }
+      if (!nextGithubToken && nextGithubRepo) {
+        return NextResponse.json(
+          { error: "GitHub token is required when setting a repository" },
+          { status: 400 },
+        );
+      }
+      if (nextGithubToken && nextGithubRepo) {
+        const check = await verifyGithubCredentials(nextGithubToken, nextGithubRepo);
+        if (!check.valid) {
+          return NextResponse.json(
+            { error: `GitHub: ${check.error}`, githubError: true },
+            { status: 400 },
+          );
+        }
       }
     }
 
@@ -128,20 +168,20 @@ export async function PATCH(
     if (name !== undefined) data.name = name.trim();
     if (domain !== undefined) data.domain = domain?.trim() || null;
 
-    if (notionApiKey && notionDbId) {
-      data.notionApiKey = notionApiKey;
-      data.notionDbId = notionDbId;
-    } else if (notionApiKey === null || notionDbId === null) {
+    if (notionDisconnect) {
       data.notionApiKey = null;
       data.notionDbId = null;
+    } else {
+      if (notionApiKey !== undefined) data.notionApiKey = nextNotionApiKey;
+      if (notionDbId !== undefined) data.notionDbId = nextNotionDbId;
     }
 
-    if (githubToken && githubRepo) {
-      data.githubToken = githubToken;
-      data.githubRepo = githubRepo;
-    } else if (githubToken === null || githubRepo === null) {
+    if (githubDisconnect) {
       data.githubToken = null;
       data.githubRepo = null;
+    } else {
+      if (githubToken !== undefined) data.githubToken = nextGithubToken;
+      if (githubRepo !== undefined) data.githubRepo = nextGithubRepo;
     }
 
     if (webhookUrl !== undefined) data.webhookUrl = nextWebhookUrl;
@@ -150,15 +190,14 @@ export async function PATCH(
     if (githubEnabled !== undefined) data.githubEnabled = !!githubEnabled;
     if (webhookEnabled !== undefined) data.webhookEnabled = !!webhookEnabled;
 
-    const updated = await prisma.site.update({ where: { id }, data });
+    const updated = await prisma.site.update({
+      where: { id },
+      data,
+      select: adminSiteSelect,
+    });
 
     return NextResponse.json({
-      site: {
-        ...updated,
-        notionApiKey: maskSecret(updated.notionApiKey),
-        githubToken: maskSecret(updated.githubToken),
-        webhookToken: maskSecret(updated.webhookToken),
-      },
+      site: toAdminSitePayload(updated),
     });
   } catch (error) {
     console.error("Site update error:", error);
@@ -182,7 +221,10 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  const site = await prisma.site.findUnique({ where: { id } });
+  const site = await prisma.site.findUnique({
+    where: { id },
+    select: { tenantId: true },
+  });
   if (!site || site.tenantId !== session.tenantId) {
     return NextResponse.json({ error: "Site not found" }, { status: 404 });
   }

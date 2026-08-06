@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 interface FeedbackItem {
@@ -62,33 +62,36 @@ export default function FeedbackListPage() {
   const [search, setSearch] = useState("");
   const limit = 20;
 
-  const fetchFeedback = useCallback(async () => {
-    setLoading(true);
-    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
-    if (status !== "all") params.set("status", status);
-    if (category !== "all") params.set("category", category);
-    if (search) params.set("search", search);
+  useEffect(() => {
+    let cancelled = false;
 
-    const siteId = document.cookie
-      .split("; ")
-      .find((c) => c.startsWith("current-site-id="))
-      ?.split("=")[1];
-    if (siteId) params.set("siteId", siteId);
+    async function fetchFeedback() {
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+      if (status !== "all") params.set("status", status);
+      if (category !== "all") params.set("category", category);
+      if (search) params.set("search", search);
 
-    const res = await fetch(`/api/feedback?${params}`);
-    const data = await res.json();
-    setFeedback(data.feedback);
-    setTotal(data.total);
-    setLoading(false);
+      const siteId = document.cookie
+        .split("; ")
+        .find((c) => c.startsWith("current-site-id="))
+        ?.split("=")[1];
+      if (siteId) params.set("siteId", siteId);
+
+      const res = await fetch(`/api/feedback?${params}`);
+      const data = await res.json();
+      if (cancelled) return;
+
+      setFeedback(data.feedback);
+      setTotal(data.total);
+      setLoading(false);
+    }
+
+    void fetchFeedback();
+
+    return () => {
+      cancelled = true;
+    };
   }, [page, status, category, search]);
-
-  useEffect(() => {
-    fetchFeedback();
-  }, [fetchFeedback]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [status, category, search]);
 
   const totalPages = Math.ceil(total / limit);
 
@@ -105,12 +108,20 @@ export default function FeedbackListPage() {
             type="text"
             placeholder="Search messages, pages, users..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setLoading(true);
+              setPage(1);
+              setSearch(e.target.value);
+            }}
             className="flex-1 min-w-[200px] px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-gray-900"
           />
           <select
             value={status}
-            onChange={(e) => setStatus(e.target.value)}
+            onChange={(e) => {
+              setLoading(true);
+              setPage(1);
+              setStatus(e.target.value);
+            }}
             className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none"
           >
             <option value="all">All Status</option>
@@ -121,7 +132,11 @@ export default function FeedbackListPage() {
           </select>
           <select
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            onChange={(e) => {
+              setLoading(true);
+              setPage(1);
+              setCategory(e.target.value);
+            }}
             className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none"
           >
             <option value="all">All Categories</option>
@@ -185,14 +200,20 @@ export default function FeedbackListPage() {
             </p>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                onClick={() => {
+                  setLoading(true);
+                  setPage((p) => Math.max(1, p - 1));
+                }}
                 disabled={page === 1}
                 className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700"
               >
                 Previous
               </button>
               <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() => {
+                  setLoading(true);
+                  setPage((p) => Math.min(totalPages, p + 1));
+                }}
                 disabled={page === totalPages}
                 className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700"
               >

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession, requireRole } from "@/lib/auth";
-import { verifyApiKey, extractApiKey } from "@/lib/apiKey";
+import { verifyApiKey, extractApiKey, generateApiKey } from "@/lib/apiKey";
+import { generateSiteKey } from "@/lib/siteKey";
 
 export async function GET(request: NextRequest) {
   // Try session auth first
@@ -109,6 +110,7 @@ export async function POST(request: NextRequest) {
           tenantId,
           name: name.trim(),
           domain: domain?.trim() || null,
+          siteKey: generateSiteKey(),
         },
         select: {
           id: true,
@@ -125,7 +127,7 @@ export async function POST(request: NextRequest) {
           siteId: site.id,
           tenantId,
           name: `${site.name} - Default Key`,
-          key: require("crypto").randomBytes(32).toString("hex"),
+          key: generateApiKey(),
           permissions: ["feedback:read", "feedback:write", "sites:read"],
         },
         select: {

@@ -37,7 +37,9 @@ Sign up at your WebFeedback instance (or self-host -- see [Development](#develop
 After setup you'll have:
 
 - **API URL** -- e.g. `https://web-feedback.vercel.app`
-- **Site Key** -- e.g. `cmxxxxxxxxxxxxxxxxxxxxxx` (from Admin > Settings)
+- **Site Key** -- e.g. `cmxxxxxxxxxxxxxxxxxxxxxx` (from Admin > Sites > open your site)
+
+If a site key is ever exposed, rotate it from Admin > Sites > open your site > `Rotate Key`, then update every widget, demo page, and browser extension config that still references the old value. Rotation invalidates the previous key immediately.
 
 ### 2. Add the widget
 
@@ -300,7 +302,7 @@ Open `http://localhost:3000/setup` to create your first tenant and admin account
 
 ### Demo Page
 
-Open `demo/index.html` in a browser to see the widget in action. Update the `site-key` attribute with your key from `/admin/settings`.
+Open `demo/index.html` in a browser to see the widget in action. Update the `site-key` attribute with your key from `/admin/sites`.
 
 ### Deploy to Vercel
 

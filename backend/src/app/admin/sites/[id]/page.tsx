@@ -8,14 +8,17 @@ interface SiteData {
   name: string;
   domain: string | null;
   siteKey: string;
-  notionApiKey: string | null;
+  hasNotionApiKey: boolean;
+  notionApiKeyPreview: string | null;
   notionDbId: string | null;
   notionEnabled: boolean;
-  githubToken: string | null;
+  hasGithubToken: boolean;
+  githubTokenPreview: string | null;
   githubRepo: string | null;
   githubEnabled: boolean;
   webhookUrl: string | null;
-  webhookToken: string | null;
+  hasWebhookToken: boolean;
+  webhookTokenPreview: string | null;
   webhookEnabled: boolean;
   createdAt: string;
 }
@@ -34,6 +37,7 @@ export default function SiteDetailPage() {
   const [domain, setDomain] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [rotatingKey, setRotatingKey] = useState(false);
 
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
@@ -133,6 +137,34 @@ export default function SiteDetailPage() {
     }
   }
 
+  async function handleRotateSiteKey() {
+    if (!confirm("Rotate this site key now? The current key will stop working immediately.")) {
+      return;
+    }
+
+    clearMessages();
+    setRotatingKey(true);
+
+    try {
+      const res = await fetch(`/api/sites/${siteId}/site-key`, {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Failed to rotate site key");
+        return;
+      }
+
+      setSite((current) => (current ? { ...current, siteKey: data.site.siteKey } : current));
+      setSuccess("Site key rotated. Update any widget or extension configs that still use the old key.");
+    } catch {
+      setError("Network error");
+    } finally {
+      setRotatingKey(false);
+    }
+  }
+
   async function handleNotionSave() {
     clearMessages();
 
@@ -140,7 +172,7 @@ export default function SiteDetailPage() {
       setError("Database ID is required when setting an API key");
       return;
     }
-    const hasExistingKey = site?.notionApiKey && site.notionApiKey !== "null";
+    const hasExistingKey = site?.hasNotionApiKey;
     if (notionDbId && !notionApiKey && !hasExistingKey) {
       setError("API key is required when setting a database ID");
       return;
@@ -228,7 +260,7 @@ export default function SiteDetailPage() {
       setError("Repository is required when setting a token");
       return;
     }
-    const hasExistingToken = site?.githubToken && site.githubToken !== "null";
+    const hasExistingToken = site?.hasGithubToken;
     if (githubRepo && !githubToken && !hasExistingToken) {
       setError("Token is required when setting a repository");
       return;
@@ -316,7 +348,7 @@ export default function SiteDetailPage() {
       setError("Webhook callback URL is required when setting a bearer token");
       return;
     }
-    const hasExistingToken = site?.webhookToken && site.webhookToken !== "null";
+    const hasExistingToken = site?.hasWebhookToken;
     if (webhookUrl && !webhookToken && !hasExistingToken) {
       setError("Webhook bearer token is required when setting a callback URL");
       return;
@@ -447,9 +479,9 @@ export default function SiteDetailPage() {
     ? `<script src="${backendUrl}/widget.js"><\/script>\n<feedback-widget\n  site-key="${site.siteKey}"\n  api-url="${backendUrl}"\n  position="bottom-right"\n></feedback-widget>`
     : "";
 
-  const notionConnected = site?.notionApiKey && site.notionApiKey !== "null" && site?.notionDbId;
-  const githubConnected = site?.githubToken && site.githubToken !== "null" && site?.githubRepo;
-  const webhookConnected = site?.webhookToken && site.webhookToken !== "null" && site?.webhookUrl;
+  const notionConnected = !!(site?.hasNotionApiKey && site.notionDbId);
+  const githubConnected = !!(site?.hasGithubToken && site.githubRepo);
+  const webhookConnected = !!(site?.hasWebhookToken && site.webhookUrl);
 
   if (loading) {
     return (
@@ -549,9 +581,23 @@ export default function SiteDetailPage() {
 
         {/* Site Key */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Site Key</h2>
+          <div className="mb-2 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Site Key</h2>
+              <p className="text-sm text-gray-500 mt-2">
+                This key identifies your site. Include it in the widget configuration.
+              </p>
+            </div>
+            <button
+              onClick={handleRotateSiteKey}
+              disabled={rotatingKey}
+              className="shrink-0 rounded-lg border border-red-200 px-3 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {rotatingKey ? "Rotating..." : "Rotate Key"}
+            </button>
+          </div>
           <p className="text-sm text-gray-500 mb-4">
-            This key identifies your site. Include it in the widget configuration.
+            Rotating invalidates the previous key immediately. Update deployed widgets, demos, and extensions right after generating a new key.
           </p>
           <div className="flex items-center gap-3">
             <code className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 font-mono text-sm text-gray-800 select-all">
@@ -613,7 +659,7 @@ export default function SiteDetailPage() {
                 <div className="flex items-center justify-between">
                   <dt className="text-gray-400 font-medium">API Key</dt>
                   <dd className="text-gray-700 font-mono text-xs">
-                    {site.notionApiKey && site.notionApiKey !== "null" ? site.notionApiKey : "Not set"}
+                    {site.notionApiKeyPreview || "Not set"}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between">
@@ -742,7 +788,7 @@ export default function SiteDetailPage() {
                 <div className="flex items-center justify-between">
                   <dt className="text-gray-400 font-medium">Token</dt>
                   <dd className="text-gray-700 font-mono text-xs">
-                    {site.githubToken && site.githubToken !== "null" ? site.githubToken : "Not set"}
+                    {site.githubTokenPreview || "Not set"}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between">
@@ -874,7 +920,7 @@ export default function SiteDetailPage() {
                 <div className="flex items-center justify-between">
                   <dt className="text-gray-400 font-medium">Bearer Token</dt>
                   <dd className="text-gray-700 font-mono text-xs">
-                    {site.webhookToken && site.webhookToken !== "null" ? site.webhookToken : "Not set"}
+                    {site.webhookTokenPreview || "Not set"}
                   </dd>
                 </div>
               </dl>
